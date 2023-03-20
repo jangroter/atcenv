@@ -100,7 +100,6 @@ class Environment(gym.Env):
         """
 
         it2 = 0
-
         for i, f in enumerate(self.flights):
 
             if i not in self.done:

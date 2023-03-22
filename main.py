@@ -5,6 +5,9 @@ Example
 import numpy as np
 import tracemalloc
 
+# choose between 'masac_transformer' or 'masac'
+RLMETHOD = 'masac_transformer'
+
 if __name__ == "__main__":
     import random
     random.seed(52)
@@ -15,7 +18,15 @@ if __name__ == "__main__":
 
     # RL model
     import atcenv.TempConfig as tc
-    from atcenv.MASAC_transform.masac_agent import MaSacAgent
+    if RLMETHOD == 'masac':
+        from atcenv.MASAC.masac_agent import MaSacAgent
+        obs_type = 'relative'
+    elif RLMETHOD == 'masac_transformer':
+        from atcenv.MASAC_transform.masac_agent import MaSacAgent
+        obs_type = 'absolute'
+    else:
+        raise Exception("Choose between 'masac' and 'masac_transformer'.")
+    
     import copy
 
     parser = ArgumentParser(
@@ -30,6 +41,7 @@ if __name__ == "__main__":
 
     # parse arguments
     args = parser.parse_args()
+    args.env.obs = obs_type
     #tracemalloc.start()
 
     # init environment

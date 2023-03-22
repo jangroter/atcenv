@@ -46,6 +46,14 @@ class Actor(nn.Module):
         b, t, k = state.size()
         h = self.num_heads
 
+        ## Relative states?
+        # rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
+        # rel_state.size -> [b,t,t,k]
+        # keys = self.tokeys(rel_state.view(b,t*t,k))
+        # same for values
+        # keys = keys.view(b,t,t,k), get back to old view
+        # now just find a smart way to do the attention weights and maybe also add multihead attention?!
+
         # Project state to queries, keys and values
         queries = self.toqueries(state).view(b, t, h, k)
         keys    = self.tokeys(state).view(b, t, h, k)

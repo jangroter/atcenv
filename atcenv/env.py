@@ -42,6 +42,7 @@ class Environment(gym.Env):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(self,
+                 obs: str = 'absolute', 
                  num_flights: int = 1,
                  dt: float = 5.,
                  max_area: Optional[float] = 200. * 200.,
@@ -55,6 +56,7 @@ class Environment(gym.Env):
         """
         Initialises the environment
 
+        :param obs: chooses observation vector type, 'relative' or 'absolute' 
         :param num_flights: numer of flights in the environment
         :param dt: time step (in seconds)
         :param max_area: maximum area of the sector (in nm^2)
@@ -75,6 +77,8 @@ class Environment(gym.Env):
         self.max_episode_len = max_episode_len
         self.distance_init_buffer = distance_init_buffer
         self.dt = dt
+
+        self.obs = obs
 
         # tolerance to consider that the target has been reached (in meters)
         self.tol = self.max_speed * 1.05 * self.dt
@@ -123,7 +127,7 @@ class Environment(gym.Env):
         weight_a    = -10 #-10
         weight_b    = 1/5.
         weight_c    = 0
-        weight_d    = -0.001
+        weight_d    = 0 #-0.001
         weight_e    = 0  
         
         conflicts   = self.conflict_penalties() * weight_a
@@ -212,6 +216,34 @@ class Environment(gym.Env):
         Returns the observation of each agent
         :return: observation of each agent
         """
+        if self.obs == 'relative':
+            return self.obs_relative()        
+        elif self.obs == 'absolute':
+            return self.obs_absolute()
+        else:
+            raise Exception("Only 'relative' or 'absolute' allowed for the observation vector")
+
+    def obs_absolute(self):
+        observations_all = []
+
+        for i, f in enumerate(self.flights):
+            x = f.position.x
+            y = f.position.y
+            vx, vy = f.components
+
+            v = f.airspeed
+
+            observations = [x,y,vx,vy,v]
+
+            # bearing to target
+            observations.append(m.sin(float(f.drift)))
+            observations.append(m.cos(float(f.drift)))
+
+            observations_all.append(observations)
+        
+        return observations_all
+
+    def obs_relative(self):
         # observations (size = 2 * NUMBER_INTRUDERS_STATE + 5):
         # distance to closest #NUMBER_INTRUDERS_STATE intruders
         # relative bearing to closest #NUMBER_INTRUDERS_STATE intruders
@@ -311,6 +343,7 @@ class Environment(gym.Env):
         ##########################################################
         return observations_all
         ##########################################################
+
 
     def update_conflicts(self) -> None:
         """

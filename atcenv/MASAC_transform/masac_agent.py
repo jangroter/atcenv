@@ -1,4 +1,5 @@
 from math import gamma
+import math
 from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
@@ -21,15 +22,9 @@ BUFFER_SIZE = 1000000
 BATCH_SIZE = 256
 
 ACTION_DIM = 2
-STATE_DIM = 14
-NUMBER_INTRUDERS_STATE = 2
+STATE_DIM = 7
 
 NUM_HEADS = 3
-
-
-
-MEANS = [57000,57000,0,0,0,0,0,0]
-STDS = [31500,31500,100000,100000,1,1,1,1]
 
 class MaSacAgent:
     def __init__(self):                
@@ -62,7 +57,6 @@ class MaSacAgent:
         self.qf1_optimizer = optim.Adam(self.qf1.parameters(), lr=3e-3)
         self.qf2_optimizer = optim.Adam(self.qf2.parameters(), lr=3e-3)
 
-        #self.transition = [[] for i in range(NUM_AGENTS)]
         self.transition = []
 
         self.total_step = 0
@@ -173,35 +167,13 @@ class MaSacAgent:
             t_param.data.copy_(TAU * l_param.data + (1.0 - TAU) * t_param.data)
 
     def normalizeState(self, s_t, max_speed, min_speed):
-         # distance to closest #NUMBER_INTRUDERS_STATE intruders
-        for i in range(0, NUMBER_INTRUDERS_STATE):
-            s_t[i] = (s_t[i]-MEANS[0])/(STDS[0]*2)
+        s_t[0] = s_t[0]/210000 # 210000 is the maximum observed x value for the default environment
+        s_t[1] = s_t[1]/210000 
 
-        # relative bearing to closest #NUMBER_INTRUDERS_STATE intruders
-        for i in range(NUMBER_INTRUDERS_STATE, NUMBER_INTRUDERS_STATE*2):
-            s_t[i] = (s_t[i]-MEANS[1])/(STDS[1]*2)
+        s_t[2] = s_t[2]/max_speed
+        s_t[3] = s_t[3]/max_speed
+        s_t[4] = ((s_t[4]-(min_speed+max_speed)/2)/((max_speed-min_speed)/2))
 
-        for i in range(NUMBER_INTRUDERS_STATE*2, NUMBER_INTRUDERS_STATE*3):
-            s_t[i] = (s_t[i]-MEANS[2])/(STDS[2]*2)
-        
-        for i in range(NUMBER_INTRUDERS_STATE*3, NUMBER_INTRUDERS_STATE*4):
-            s_t[i] = (s_t[i]-MEANS[3])/(STDS[3]*2)
-
-        for i in range(NUMBER_INTRUDERS_STATE*4, NUMBER_INTRUDERS_STATE*5):
-            s_t[i] = (s_t[i])/(3.1415)
-
-        # current bearing
-        
-        # current speed
-        s_t[NUMBER_INTRUDERS_STATE*5] = ((s_t[NUMBER_INTRUDERS_STATE*5]-min_speed)/(max_speed-min_speed))*2 - 1
-        # optimal speed
-        s_t[NUMBER_INTRUDERS_STATE*5 + 1] = ((s_t[NUMBER_INTRUDERS_STATE*5 + 1]-min_speed)/(max_speed-min_speed))*2 - 1
-        # # distance to target
-        # s_t[NUMBER_INTRUDERS_STATE*2 + 2] = s_t[NUMBER_INTRUDERS_STATE*2 + 2]/MAX_DISTANCE
-        # # bearing to target
-        s_t[NUMBER_INTRUDERS_STATE*5+2] = s_t[NUMBER_INTRUDERS_STATE*5+2]
-        s_t[NUMBER_INTRUDERS_STATE*5+3] = s_t[NUMBER_INTRUDERS_STATE*5+3]
-
-        # s_t[0] = s_t[0]/MAX_BEARING
-
+        s_t[5] = s_t[5]/math.pi
+        s_t[6] = s_t[6]/math.pi
         return s_t

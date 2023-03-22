@@ -32,7 +32,7 @@ class Actor(nn.Module):
         self.tovalues  = nn.Linear(in_dim, in_dim*num_heads, bias=False)
 
         # Feedforward network
-        self.hidden1 = nn.Linear(in_dim*num_heads, hidden_dim1)
+        self.hidden1 = nn.Linear(in_dim*num_heads+in_dim, hidden_dim1)
         self.hidden2 = nn.Linear(hidden_dim1, hidden_dim2)
 
         log_std_layer = nn.Linear(hidden_dim2, out_dim)
@@ -47,33 +47,66 @@ class Actor(nn.Module):
         h = self.num_heads
 
         ## Relative states?
-        # rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
+        rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
         # rel_state.size -> [b,t,t,k]
-        # keys = self.tokeys(rel_state.view(b,t*t,k))
-        # same for values
-        # keys = keys.view(b,t,t,k), get back to old view
-        # now just find a smart way to do the attention weights and maybe also add multihead attention?!
-
-        # Project state to queries, keys and values
         queries = self.toqueries(state).view(b, t, h, k)
-        keys    = self.tokeys(state).view(b, t, h, k)
-        values  = self.tovalues(state).view(b, t, h, k)
+        keys = self.tokeys(rel_state.view(b,t*t,k)).view(b,t*t,h,k)
+        values = self.tovalues(rel_state.view(b,t*t,k)).view(b,t*t,h,k)
 
         # Fold heads into the batch dimension
-        keys = keys.transpose(1, 2).reshape(b * h, t, k)
         queries = queries.transpose(1, 2).reshape(b * h, t, k)
-        values = values.transpose(1, 2).reshape(b * h, t, k)
+        keys = keys.transpose(1, 2).reshape(b * h, t*t, k)
+        values = values.transpose(1, 2).reshape(b * h, t*t, k)
 
-        # Compute attention weights
-        w_prime = torch.bmm(queries, keys.transpose(1, 2))
-        w_prime = w_prime / (k ** (1 / 2))
-        w = F.softmax(w_prime, dim=2)
+        keys = keys.view(b*h,t,t,k)
+        values = values.view(b*h,t,t,k)
 
-        # Apply the self-attention to the values
-        x = torch.bmm(w, values).view(b, h, t, k)
+        x = torch.empty((b,t,h*k))
 
-        # Swap h, t back, unify heads
-        x = x.transpose(1, 2).reshape(b, t, h * k)
+        for i in range(t):
+            key = keys[:,i,:,:]
+            value = values[:,i,:,:]
+            query = queries[:,i,:].view(b*h,1,k)
+            
+            # Compute attention weights
+            w_prime = torch.bmm(query, key.transpose(1, 2))
+            w_prime = w_prime / (k ** (1 / 2))
+            w = F.softmax(w_prime, dim=2)
+
+            # Apply the self-attention to the values
+            x_ = torch.bmm(w, value).view(b, h, 1, k)
+
+            # Swap h, t back, unify heads
+            x_ = x_.transpose(1, 2).reshape(b, h * k)
+
+            x[:,i,:] = x_
+
+        x = torch.cat((x,state),dim=2) # add absolute state information also before passing through the FFN
+
+        # # same for values
+        # # keys = keys.view(b,t,t,k), get back to old view
+        # # now just find a smart way to do the attention weights and maybe also add multihead attention?!
+
+        # # Project state to queries, keys and values
+        # queries = self.toqueries(state).view(b, t, h, k)
+        # keys    = self.tokeys(state).view(b, t, h, k)
+        # values  = self.tovalues(state).view(b, t, h, k)
+
+        # # Fold heads into the batch dimension
+        # keys = keys.transpose(1, 2).reshape(b * h, t, k)
+        # queries = queries.transpose(1, 2).reshape(b * h, t, k)
+        # values = values.transpose(1, 2).reshape(b * h, t, k)
+        
+        # # Compute attention weights
+        # w_prime = torch.bmm(queries, keys.transpose(1, 2))
+        # w_prime = w_prime / (k ** (1 / 2))
+        # w = F.softmax(w_prime, dim=2)
+
+        # # Apply the self-attention to the values
+        # x = torch.bmm(w, values).view(b, h, t, k)
+
+        # # Swap h, t back, unify heads
+        # x = x.transpose(1, 2).reshape(b, t, h * k)
 
         x = F.relu(self.hidden1(x))
         x = F.relu(self.hidden2(x))

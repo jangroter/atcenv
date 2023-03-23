@@ -137,7 +137,6 @@ class Environment(gym.Env):
         target      = self.reachedTarget() * weight_e # can also try to just ouput negative rewards
         
         tot_reward  = conflicts + drifts + severities + speed_dif + target  
-
         return tot_reward
 
     def reachedTarget(self):
@@ -548,6 +547,7 @@ class Environment(gym.Env):
             self.viewer.add_onetime(circle)
 
         self.viewer.render()
+
 
     def close(self) -> None:
         """

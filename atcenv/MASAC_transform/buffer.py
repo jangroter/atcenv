@@ -7,7 +7,7 @@ class ReplayBuffer:
     def __init__(self, obs_dim: int, action_dim: int, n_agents: int, size: int, batch_size: int = 32):
         self.obs_buf = np.zeros([size, n_agents, obs_dim], dtype=np.float32)
         self.next_obs_buf = np.zeros([size, n_agents, obs_dim], dtype=np.float32)
-        self.rews_buf = np.zeros([size], dtype=np.float32)
+        self.rews_buf = np.zeros([size, n_agents], dtype=np.float32)
         self.acts_buf = np.zeros([size, n_agents, action_dim], dtype=np.float32)
         self.done_buf = np.zeros(size, dtype=np.float32)
         self.max_size, self.batch_size = size, batch_size

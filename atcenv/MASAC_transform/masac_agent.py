@@ -12,19 +12,19 @@ from atcenv.MASAC_transform.mactor_critic import Actor, CriticQ, CriticV
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 
-GAMMMA = 0.99
-TAU =5e-3
+GAMMMA = 0.95
+TAU =5e-2 #was 5e-3
 INITIAL_RANDOM_STEPS = 100
 POLICY_UPDATE_FREQUENCE = 2
 NUM_AGENTS = 10
 
-BUFFER_SIZE = 1000000
+BUFFER_SIZE = 100000
 BATCH_SIZE = 256
 
 ACTION_DIM = 2
 STATE_DIM = 7
 
-NUM_HEADS = 3
+NUM_HEADS = 8
 
 class MaSacAgent:
     def __init__(self):                
@@ -43,14 +43,17 @@ class MaSacAgent:
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha_optimizer = optim.Adam([self.log_alpha], lr=3e-4)
 
+        self.qf1_lossarr = np.array([])
+        self.qf2_lossarr = np.array([])
+
         self.actor = Actor(STATE_DIM, ACTION_DIM, num_heads=NUM_HEADS).to(self.device)
 
-        self.vf = CriticV(STATE_DIM * NUM_AGENTS).to(self.device)
-        self.vf_target = CriticV(STATE_DIM * NUM_AGENTS).to(self.device)
+        self.vf = CriticV(STATE_DIM, num_heads=NUM_HEADS).to(self.device)
+        self.vf_target = CriticV(STATE_DIM, num_heads=NUM_HEADS).to(self.device)
         self.vf_target.load_state_dict(self.vf.state_dict())
 
-        self.qf1 = CriticQ(STATE_DIM * NUM_AGENTS + ACTION_DIM * NUM_AGENTS).to(self.device)
-        self.qf2 = CriticQ(STATE_DIM * NUM_AGENTS + ACTION_DIM * NUM_AGENTS).to(self.device)
+        self.qf1 = CriticQ(STATE_DIM + ACTION_DIM, num_heads=NUM_HEADS).to(self.device)
+        self.qf2 = CriticQ(STATE_DIM + ACTION_DIM, num_heads=NUM_HEADS).to(self.device)
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-4)
         self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=3e-3)
@@ -94,16 +97,13 @@ class MaSacAgent:
 
         samples = self.memory.sample_batch()
         state = torch.FloatTensor(samples["obs"]).to(device)
-        q_state = torch.reshape(state,(BATCH_SIZE,STATE_DIM*NUM_AGENTS))
         next_state = torch.FloatTensor(samples["next_obs"]).to(device)
-        q_next_state = torch.reshape(next_state,(BATCH_SIZE,STATE_DIM*NUM_AGENTS))
         action = torch.FloatTensor(samples["acts"]).to(device)
-        q_action = torch.reshape(action,(BATCH_SIZE,ACTION_DIM*NUM_AGENTS))
-        reward = torch.FloatTensor(samples["rews"].reshape(-1,1)).to(device)
-        done = torch.FloatTensor(samples["done"].reshape(-1, 1)).to(device)
+        reward = torch.FloatTensor(samples["rews"]).to(device)
+        b,n = reward.size()
+        reward = reward.view(b,n,1)
+        done = torch.FloatTensor(samples["done"]).to(device)
         new_action, log_prob = self.actor(state)
-        q_new_action = torch.reshape(new_action,(BATCH_SIZE,ACTION_DIM*NUM_AGENTS))
-        q_log_prob = torch.mean(log_prob,1)
         alpha_loss = ( -self.log_alpha.exp() * (log_prob + self.target_alpha).detach()).mean()
 
         self.alpha_optimizer.zero_grad()
@@ -112,24 +112,28 @@ class MaSacAgent:
 
         alpha = self.log_alpha.exp()
 
-        mask = 1 - done
-        q1_pred = self.qf1(q_state, q_action)
-        q2_pred = self.qf2(q_state, q_action)
-        vf_target = self.vf_target(q_next_state)
-        q_target = reward + GAMMMA * vf_target * mask
+        #mask = 1 - done
+        q1_pred = self.qf1(state, action)
+        q2_pred = self.qf2(state, action)
+        vf_target = self.vf_target(next_state)
+        #print(mask.shape)
+        q_target = reward + GAMMMA * vf_target #* mask
         qf1_loss = F.mse_loss(q_target.detach(), q1_pred)
         qf2_loss = F.mse_loss(q_target.detach(), q2_pred)
 
-        v_pred = self.vf(q_state)
+        self.qf1_lossarr = np.append(self.qf1_lossarr,qf1_loss.detach().cpu().numpy())
+        self.qf2_lossarr = np.append(self.qf2_lossarr,qf2_loss.detach().cpu().numpy())
+
+        v_pred = self.vf(state)
         q_pred = torch.min(
-            self.qf1(q_state, q_new_action), self.qf2(q_state, q_new_action)
+            self.qf1(state, new_action), self.qf2(state, new_action)
         )
-        v_target = q_pred - alpha * q_log_prob
+        v_target = q_pred - alpha * log_prob
         v_loss = F.mse_loss(v_pred, v_target.detach())
 
         if self.total_step % POLICY_UPDATE_FREQUENCE== 0:
             advantage = q_pred - v_pred.detach()
-            actor_loss = (alpha * q_log_prob - advantage).mean()
+            actor_loss = (alpha * log_prob - advantage).mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()

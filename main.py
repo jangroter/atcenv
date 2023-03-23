@@ -4,9 +4,15 @@ Example
 
 import numpy as np
 import tracemalloc
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
 
 # choose between 'masac_transformer' or 'masac'
 RLMETHOD = 'masac_transformer'
+
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
 
 if __name__ == "__main__":
     import random
@@ -69,6 +75,7 @@ if __name__ == "__main__":
         # train with an increasing number of aircraft
         number_of_aircraft = 10 #min(int(e/500)+5,10)
         obs = env.reset(number_of_aircraft)
+        env.close()
         for obs_i in obs:
             RL.normalizeState(obs_i, env.max_speed, env.min_speed)
         # set done status to false
@@ -106,15 +113,24 @@ if __name__ == "__main__":
             #while len(obs) < len(obs0):
             #    obs.append( [0] * 14) # STATE_SIZE = 14
             if len(env.done) == 0:
-                RL.setResult(episode_name, obs0, obs, sum(rew), actions, done_e)
+                RL.setResult(episode_name, obs0, obs, rew, actions, done_e)
                 # print('obs0,',obs0[it_obs],'obs,',obs[it_obs],'done_e,', done_e)
             # comment render out for faster processing
-            # if e%10 == 0:
+            # if e%25 == 0:
             #     env.render()
-                #time.sleep(0.01)
+            #     time.sleep(0.01)
             number_steps_until_done += 1
             number_conflicts += len(env.conflicts)            
-                
+            
+        if e%25 == 0:
+            fig, ax = plt.subplots()
+            ax.plot(RL.qf1_lossarr, label='qf1')
+            ax.plot(RL.qf2_lossarr, label='qf2')
+            ax.plot(moving_average(RL.qf2_lossarr,500))
+            ax.set_ylim([0,10])
+            fig.savefig('qloss.png')
+            plt.close(fig)
+        
         if len(tot_rew_list) < 100:
             tot_rew_list.append(sum(tot_rew)/number_of_aircraft)
             conf_list.append(number_conflicts)

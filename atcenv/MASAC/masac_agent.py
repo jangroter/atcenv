@@ -53,6 +53,9 @@ class MaSacAgent:
         self.qf1 = CriticQ(STATE_DIM * NUM_AGENTS + ACTION_DIM * NUM_AGENTS).to(self.device)
         self.qf2 = CriticQ(STATE_DIM * NUM_AGENTS + ACTION_DIM * NUM_AGENTS).to(self.device)
 
+        self.qf1_lossarr = np.array([])
+        self.qf2_lossarr = np.array([])
+
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-4)
         self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=3e-3)
         self.qf1_optimizer = optim.Adam(self.qf1.parameters(), lr=3e-3)
@@ -125,6 +128,9 @@ class MaSacAgent:
         q_target = reward + GAMMMA * vf_target * mask
         qf1_loss = F.mse_loss(q_target.detach(), q1_pred)
         qf2_loss = F.mse_loss(q_target.detach(), q2_pred)
+
+        self.qf1_lossarr = np.append(self.qf1_lossarr,qf1_loss.detach().cpu().numpy())
+        self.qf2_lossarr = np.append(self.qf2_lossarr,qf2_loss.detach().cpu().numpy())
 
         v_pred = self.vf(q_state)
         q_pred = torch.min(

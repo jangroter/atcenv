@@ -162,7 +162,10 @@ class Flight:
         boundary = airspace.polygon.boundary
         while True:
             d = random.uniform(0, airspace.polygon.boundary.length)
+            
             target = boundary.interpolate(d)
+            target = Point(target.x * 10, target.y * 10)
+            
             if target.distance(position) > tol:
                 break
 

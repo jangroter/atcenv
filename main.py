@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use('agg')
 
 # choose between 'masac_transformer' or 'masac'
-RLMETHOD = 'masac_transformer'
+RLMETHOD = 'masac_c_transformer'
 
 def moving_average(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
@@ -29,6 +29,9 @@ if __name__ == "__main__":
         obs_type = 'relative'
     elif RLMETHOD == 'masac_transformer':
         from atcenv.MASAC_transform.masac_agent import MaSacAgent
+        obs_type = 'absolute'
+    elif RLMETHOD == 'masac_c_transformer':
+        from atcenv.MASAC_C_transform.masac_agent import MaSacAgent
         obs_type = 'absolute'
     else:
         raise Exception("Choose between 'masac' and 'masac_transformer'.")
@@ -78,6 +81,13 @@ if __name__ == "__main__":
         env.close()
         for obs_i in obs:
             RL.normalizeState(obs_i, env.max_speed, env.min_speed)
+        
+        if RLMETHOD == 'masac_c_transformer':
+            qobs = env.obs_relative()
+            for qobs_i in qobs:
+                RL.qnormalizeState(qobs_i, env.max_speed, env.min_speed)
+        
+
         # set done status to false
         done = False
 
@@ -102,6 +112,13 @@ if __name__ == "__main__":
             for obs_i in obs:
                RL.normalizeState(obs_i, env.max_speed, env.min_speed)
 
+            if RLMETHOD == 'masac_c_transformer':
+                qobs0 = copy.deepcopy(qobs)
+                qobs = env.obs_relative()
+                for qobs_i in qobs:
+                    RL.qnormalizeState(qobs_i, env.max_speed, env.min_speed)
+            
+
             if done_t or done_e:
                 done = True
 
@@ -113,30 +130,44 @@ if __name__ == "__main__":
             #while len(obs) < len(obs0):
             #    obs.append( [0] * 14) # STATE_SIZE = 14
             if len(env.done) == 0:
-                RL.setResult(episode_name, obs0, obs, rew, actions, done_e)
+                if RLMETHOD == 'masac_c_transformer':
+                    RL.setResult(episode_name, obs0, qobs0, obs, qobs, sum(rew), actions, done_e)
+                elif RLMETHOD == 'masac':
+                    RL.setResult(episode_name, obs0, obs, sum(rew), actions, done_e)
+                else:
+                    RL.setResult(episode_name, obs0, obs, rew, actions, done_e)
                 # print('obs0,',obs0[it_obs],'obs,',obs[it_obs],'done_e,', done_e)
             # comment render out for faster processing
-            # if e%25 == 0:
-            #     env.render()
-            #     time.sleep(0.01)
+            if e%25 == 5:
+                try:
+                    env.render()
+                    time.sleep(0.02)
+                except AttributeError as f:
+                    if "'Viewer' object has no attribute 'isopen'" in str(f):
+                        pass # ignore the error
             number_steps_until_done += 1
             number_conflicts += len(env.conflicts)            
             
-        if e%25 == 0:
+        tot_rew_list.append(sum(tot_rew)/number_of_aircraft)
+        conf_list.append(number_conflicts)
+
+        if e%25 == 5:
             fig, ax = plt.subplots()
             ax.plot(RL.qf1_lossarr, label='qf1')
             ax.plot(RL.qf2_lossarr, label='qf2')
             ax.plot(moving_average(RL.qf2_lossarr,500))
-            ax.set_ylim([0,10])
+            # ax.set_ylim([0,10])
             fig.savefig('qloss.png')
             plt.close(fig)
+
+            fig, ax = plt.subplots()
+            ax.plot(tot_rew_list, label='reward')
+            ax.plot(moving_average(tot_rew_list,500))
+            # ax.set_ylim([0,10])
+            fig.savefig('reward.png')
+            plt.close(fig)
+            RL.actor.print = True
         
-        if len(tot_rew_list) < 100:
-            tot_rew_list.append(sum(tot_rew)/number_of_aircraft)
-            conf_list.append(number_conflicts)
-        else:
-            tot_rew_list[e%100 -1] = sum(tot_rew)/number_of_aircraft
-            conf_list[e%100 -1] = number_conflicts
         # save information
         # if not test:
         #     RL.learn() # train the model
@@ -149,12 +180,6 @@ if __name__ == "__main__":
         print(f'Done aircraft: {len(env.done)}')  
         print(f'Done aircraft IDs: {env.done}')      
 
-        print(episode_name,'ended in', number_steps_until_done, 'runs, with', np.mean(np.array(conf_list)), 'conflicts (rolling av100), reward (rolling av100)=', np.mean(np.array(tot_rew_list))/20.)        
-        #snapshot2 = tracemalloc.take_snapshot()
-        #top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+        print(episode_name,'ended in', number_steps_until_done, 'runs, with', np.mean(np.array(conf_list)), 'conflicts (rolling av100), reward (rolling av100)=', np.mean(np.array(tot_rew_list[-100:])))       
 
-        #print("[ Top 10 differences ]")
-        #for stat in top_stats[:10]:
-        #    print(stat)
-        # close rendering
         env.close()

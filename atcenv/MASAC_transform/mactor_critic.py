@@ -49,6 +49,7 @@ class Actor(nn.Module):
         ## Relative states?
         rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
         # rel_state.size -> [b,t,t,k]
+
         queries =  F.relu(self.toqueries(state).view(b, t, h, k))
         keys =  F.relu(self.tokeys(rel_state.view(b,t*t,k)).view(b,t*t,h,k))
         values =  F.relu(self.tovalues(rel_state.view(b,t*t,k)).view(b,t*t,h,k))
@@ -151,6 +152,7 @@ class CriticQ(nn.Module):
 
         ## Relative states?
         rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
+
         # rel_state.size -> [b,t,t,k]
         queries =  F.relu(self.toqueries(state).view(b, t, h, k))
         keys =  F.relu(self.tokeys(rel_state.view(b,t*t,k)).view(b,t*t,h,k))
@@ -236,6 +238,7 @@ class CriticV(nn.Module):
 
         ## Relative states?
         rel_state = state.view(b,1,t,k) - state.view(b,1,t,k).transpose(1,2)
+
         # rel_state.size -> [b,t,t,k]
         queries = F.relu(self.toqueries(state).view(b, t, h, k))
         keys =  F.relu(self.tokeys(rel_state.view(b,t*t,k)).view(b,t*t,h,k))

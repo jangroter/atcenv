@@ -33,7 +33,7 @@ ENABLE_DELAY = False
 MAXIMUM_DELAY = 3 # s
 PROB_DELAY = 0.1
 
-NUMBER_INTRUDERS_STATE = 5
+#NUMBER_INTRUDERS_STATE = 5
 NUMBER_INTRUDERS_STATE = 2
 MAX_DISTANCE = 250*u.nm
 MAX_BEARING = math.pi
@@ -125,8 +125,8 @@ class Environment(gym.Env):
         :return: reward assigned to each agent
         """
         weight_a    = -10 #-10
-        weight_b    = 1/5.
-        weight_c    = 0
+        weight_b    = 1/5#1/5#1/5.
+        weight_c    = 0#-150
         weight_d    = 0 #-0.001
         weight_e    = 0  
         
@@ -191,7 +191,7 @@ class Environment(gym.Env):
         drift = np.zeros(self.num_flights)
         for i, f in enumerate(self.flights):
             if i not in self.done:
-                drift[i] = 0.5 - abs(f.drift)
+                drift[i] = - abs(f.drift)**2 #0.5 - abs(f.drift)
         
         return drift
             
@@ -206,7 +206,7 @@ class Environment(gym.Env):
                         distance = self.flights[i].position.distance(self.flights[j].position)
                         distances = np.append(distances,distance)
                     #conflict severity on a scale of 0-1
-                    severity[i] = -1.*((min(distances)-self.min_distance)/self.min_distance)
+                    severity[i] = 0.2 -0.8*((min(distances)-self.min_distance)/self.min_distance)
         
         return severity
 

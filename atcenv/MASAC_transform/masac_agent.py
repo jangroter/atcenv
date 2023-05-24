@@ -12,19 +12,19 @@ from atcenv.MASAC_transform.mactor_critic import Actor, CriticQ, CriticV
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 
-GAMMMA = 0.95
-TAU =5e-3 #was 5e-3
+GAMMMA = 0.99
+TAU =5e-3 
 INITIAL_RANDOM_STEPS = 100
-POLICY_UPDATE_FREQUENCE = 2
-NUM_AGENTS = 20
+POLICY_UPDATE_FREQUENCE = 1
+NUM_AGENTS = 10
 
 BUFFER_SIZE = 100000
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 
 ACTION_DIM = 2
 STATE_DIM = 7
 
-NUM_HEADS = 8
+NUM_HEADS = 3
 
 class MaSacAgent:
     def __init__(self):                

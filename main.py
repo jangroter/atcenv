@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use('agg')
 
 # choose between 'masac_transformer' or 'masac'
-RLMETHOD = 'masac_c_transformer'
+RLMETHOD = 'masac_transformer'
 
 def moving_average(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
@@ -180,6 +180,6 @@ if __name__ == "__main__":
         print(f'Done aircraft: {len(env.done)}')  
         print(f'Done aircraft IDs: {env.done}')      
 
-        print(episode_name,'ended in', number_steps_until_done, 'runs, with', np.mean(np.array(conf_list)), 'conflicts (rolling av100), reward (rolling av100)=', np.mean(np.array(tot_rew_list[-100:])))       
+        print(episode_name,'ended in', number_steps_until_done, 'runs, with', np.mean(np.array(conf_list[-100:])), 'conflicts (rolling av100), reward (rolling av100)=', np.mean(np.array(tot_rew_list[-100:])))       
 
         env.close()

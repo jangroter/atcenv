@@ -191,7 +191,7 @@ class Environment(gym.Env):
         drift = np.zeros(self.num_flights)
         for i, f in enumerate(self.flights):
             if i not in self.done:
-                drift[i] = - abs(f.drift)**2 #0.5 - abs(f.drift)
+                drift[i] = 0.5 - abs(f.drift) #- abs(f.drift)**2 
         
         return drift
             

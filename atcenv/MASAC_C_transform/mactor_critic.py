@@ -44,34 +44,39 @@ class Actor(nn.Module):
         mu_layer = nn.Linear(hidden_dim2, out_dim)
         self.mu_layer = init_layer_uniform(mu_layer)
 
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
-
-        
-        h = self.num_heads
-        _,_,k_own = state.size()
+    def forward(self, state: torch.Tensor) -> torch.Tensor:  
+        # First takes for all aircraft the first 4 entries of the state vector (x,y,vx,vy).
         rel_state_init = state[:,:,0:4]
 
+        h = self.num_heads
         b, t, k = rel_state_init.size()
-        ## Relative states
+        
+        # Subtracts this vector from itself to generate a relative state matrix 
         rel_state = rel_state_init.view(b,1,t,k) - rel_state_init.view(b,1,t,k).transpose(1,2)
+
         # Create a boolean mask to exclude the diagonal elements
         mask = ~torch.eye(t, dtype=bool).unsqueeze(0).repeat(b,1,1)
 
         # Apply the mask to the relative states tensor
         rel_state = rel_state[mask].view(b, t, t-1, k)
 
+        # Calculate absolute distance matrix of size (batch,n_agents,n_agents-1,1)
         r = torch.sqrt(rel_state[:,:,:,0]**2 + rel_state[:,:,:,1]**2).view(b,t,t-1,1)
         
+        # Apply transformation to distance to have a distance closer to zero have a higher value, assymptotically going to zero.
         r_trans = (1/(1+torch.exp(-1+5.*(r-0.2))))
 
+        # divide x and y by the distance to get the values as a function of the unit circle
         rel_state[:,:,:,0:2] = rel_state[:,:,:,0:2]/r
+        
+        # add transformed distance vector to the state vector
         rel_state = torch.cat((rel_state,r_trans),dim=-1)
+
+        # update values of the state vector size
         b, t,_, k = rel_state.size()
         # rel_state.size -> [b,t,t,k]
 
-        # queries =  F.relu(self.toqueries(state).view(b, t, h, k))
-        # keys =  F.relu(self.tokeys(rel_state.view(b,t*t,k)).view(b,t*t,h,k))
-        # values =  F.relu(self.tovalues(rel_state.view(b,t*t,k)).view(b,t*t,h,k))
+        # transformer operations
         queries =  self.toqueries(state).view(b, t, h, k)
         keys =  self.tokeys(rel_state.view(b,t*(t-1),k)).view(b,t*(t-1),h,k)
         values =  self.tovalues(rel_state.view(b,t*(t-1),k)).view(b,t*(t-1),h,k)
@@ -82,14 +87,12 @@ class Actor(nn.Module):
         values = values.transpose(1, 2).reshape(b * h, t*(t-1), k)
 
         queries = queries.view(b*h,t,1,k).transpose(2,3)
-
         keys = keys.view(b*h,t,(t-1),k)
         values = values.view(b*h,t,(t-1),k)
-       
 
         w_prime = torch.matmul(keys,queries)
         w_prime = w_prime / (k ** (1 / 2))
-        w = F.softmax(w_prime, dim=2)#.view(b*h,t,t)
+        w = F.softmax(w_prime, dim=2)
         
         x = torch.matmul(w.transpose(2,3),values).view(b*h,t,k)
 

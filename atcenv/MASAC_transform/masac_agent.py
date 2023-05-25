@@ -12,11 +12,11 @@ from atcenv.MASAC_transform.mactor_critic import Actor, CriticQ, CriticV
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 
-GAMMMA = 0.95
+GAMMMA = 0.99
 TAU =5e-3 #was 5e-3
 INITIAL_RANDOM_STEPS = 100
 POLICY_UPDATE_FREQUENCE = 2
-NUM_AGENTS = 20
+NUM_AGENTS = 10
 
 BUFFER_SIZE = 100000
 BATCH_SIZE = 64

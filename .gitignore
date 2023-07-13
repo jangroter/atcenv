@@ -147,8 +147,10 @@ cython_debug/
 
 # Results
 results/*
+output_data/*
 
 tmp/*
+models/*
 rewards.csv
 states.csv
 # PyCharm
@@ -160,3 +162,5 @@ states.csv
 
 qloss.png 
 reward.png 
+
+

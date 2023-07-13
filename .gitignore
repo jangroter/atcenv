@@ -148,9 +148,12 @@ cython_debug/
 # Results
 results/*
 output_data/*
+!output_data/.gitkeep
 
 tmp/*
 models/*
+!models/.gitkeep
+
 rewards.csv
 states.csv
 # PyCharm

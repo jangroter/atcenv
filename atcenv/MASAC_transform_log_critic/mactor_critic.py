@@ -40,8 +40,6 @@ class Actor(nn.Module):
         self.print = False
         self.count = 0
 
-        self.test = False
-
         mu_layer = nn.Linear(hidden_dim2, out_dim)
         self.mu_layer = init_layer_uniform(mu_layer)
 
@@ -136,9 +134,6 @@ class Actor(nn.Module):
 
         log_prob = dist.log_prob(z) - torch.log(1 - action.pow(2) + 1e-7)
         log_prob = log_prob.sum(-1, keepdim=True)
-
-        if self.test:
-            return mu, log_prob
 
         return action, log_prob
 

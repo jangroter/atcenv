@@ -7,38 +7,31 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from atcenv.MASAC_transform.buffer import ReplayBuffer
-from atcenv.MASAC_transform.mactor_critic import Actor, CriticQ, CriticV
+from atcenv.MASAC_transform_rel_action.buffer import ReplayBuffer
+from atcenv.MASAC_transform_rel_action.mactor_critic import Actor, CriticQ, CriticV
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 
 GAMMMA = 1.00
 TAU =5e-3 
+INITIAL_RANDOM_STEPS = 100
+POLICY_UPDATE_FREQUENCE = 1
+NUM_AGENTS = 10
 
-STEPS_PER_EPISODE = 150
-RANDOM_EPISODES = 1
-NO_LEARNING_EPISODES = 1
-INITIAL_RANDOM_STEPS = STEPS_PER_EPISODE * RANDOM_EPISODES
-NO_LEARNING_STEPS = STEPS_PER_EPISODE * NO_LEARNING_EPISODES
-
-POLICY_UPDATE_FREQUENCE = 8
-NUM_AGENTS = 15
-
-BUFFER_SIZE = 1500000
-BATCH_SIZE = 2048
+BUFFER_SIZE = 100000
+BATCH_SIZE = 256
 
 ACTION_DIM = 2
 STATE_DIM = 7
 
-NUM_HEADS = 5
+NUM_HEADS = 3
 
 class MaSacAgent:
     def __init__(self):                
         self.memory = ReplayBuffer(STATE_DIM,ACTION_DIM, NUM_AGENTS, BUFFER_SIZE, BATCH_SIZE)
 
         try:
-            # device = 'mps' if torch.backends.mps.is_available() else 'cpu'
-            self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             print('DEVICE USED: ', torch.cuda.device(torch.cuda.current_device()), torch.cuda.get_device_name(0))
     
         except:
@@ -48,7 +41,7 @@ class MaSacAgent:
         
         self.target_alpha = -np.prod((ACTION_DIM,)).item()
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=8*3e-4)
+        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=3e-4)
 
         self.qf1_lossarr = np.array([])
         self.qf2_lossarr = np.array([])
@@ -62,10 +55,10 @@ class MaSacAgent:
         self.qf1 = CriticQ(STATE_DIM + ACTION_DIM, num_heads=NUM_HEADS).to(self.device)
         self.qf2 = CriticQ(STATE_DIM + ACTION_DIM, num_heads=NUM_HEADS).to(self.device)
 
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=8*3e-5)
-        self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=8*3e-3)
-        self.qf1_optimizer = optim.Adam(self.qf1.parameters(), lr=8*3e-3)
-        self.qf2_optimizer = optim.Adam(self.qf2.parameters(), lr=8*3e-3)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=3e-5)
+        self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=3e-4)
+        self.qf1_optimizer = optim.Adam(self.qf1.parameters(), lr=3e-4)
+        self.qf2_optimizer = optim.Adam(self.qf2.parameters(), lr=3e-4)
 
         self.transition = []
 
@@ -95,9 +88,9 @@ class MaSacAgent:
             #for i in range(len(state)):         
             self.transition = [state, action, reward, new_state, done]
             self.memory.store(*self.transition)
-        if self.total_step % POLICY_UPDATE_FREQUENCE== 0:
-            if (len(self.memory) >  BATCH_SIZE and self.total_step > INITIAL_RANDOM_STEPS and self.total_step > NO_LEARNING_STEPS and not self.is_test):
-                self.update_model()
+
+        if (len(self.memory) >  BATCH_SIZE and self.total_step > INITIAL_RANDOM_STEPS):
+            self.update_model()
     
     def update_model(self):
         device = self.device
@@ -188,7 +181,3 @@ class MaSacAgent:
         s_t[5] = s_t[5]/math.pi
         s_t[6] = s_t[6]/math.pi
         return s_t
-    
-    def set_test(self,test):
-        self.test = test
-        self.actor.test = test

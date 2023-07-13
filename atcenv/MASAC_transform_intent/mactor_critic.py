@@ -26,12 +26,12 @@ class Actor(nn.Module):
         self.log_std_max = log_std_max
 
         # Generate the transformer matrices
-        self.tokeys    = nn.Linear(5, 5*num_heads, bias=False)
-        self.toqueries = nn.Linear(in_dim, 5*num_heads, bias=False)
-        self.tovalues  = nn.Linear(5, 5*num_heads, bias=False)
+        self.tokeys    = nn.Linear(7, 7*num_heads, bias=False)
+        self.toqueries = nn.Linear(in_dim, 7*num_heads, bias=False)
+        self.tovalues  = nn.Linear(7, 7*num_heads, bias=False)
 
         # Feedforward network
-        self.hidden1 = nn.Linear(5*num_heads+in_dim, hidden_dim1)
+        self.hidden1 = nn.Linear(7*num_heads+in_dim, hidden_dim1)
         self.hidden2 = nn.Linear(hidden_dim1, hidden_dim2)
 
         log_std_layer = nn.Linear(hidden_dim2, out_dim)
@@ -40,15 +40,15 @@ class Actor(nn.Module):
         self.print = False
         self.count = 0
 
-        self.test = False
-
         mu_layer = nn.Linear(hidden_dim2, out_dim)
         self.mu_layer = init_layer_uniform(mu_layer)
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:  
         # First takes for all aircraft the first 4 entries of the state vector (x,y,vx,vy).
         rel_state_init = state[:,:,0:4]
-
+        # Concatenate the drift errors naively.
+        rel_drift_init = state[:,:,5:]
+        rel_state_init = torch.cat((rel_state_init,rel_drift_init),dim=-1)
         h = self.num_heads
         b, t, k = rel_state_init.size()
         
@@ -137,9 +137,6 @@ class Actor(nn.Module):
         log_prob = dist.log_prob(z) - torch.log(1 - action.pow(2) + 1e-7)
         log_prob = log_prob.sum(-1, keepdim=True)
 
-        if self.test:
-            return mu, log_prob
-
         return action, log_prob
 
 class CriticQ(nn.Module):
@@ -154,12 +151,12 @@ class CriticQ(nn.Module):
         self.num_heads = num_heads
 
         # Generate the transformer matrices
-        self.tokeys    = nn.Linear(5, 5*num_heads, bias=False)
-        self.toqueries = nn.Linear(in_dim, 5*num_heads, bias=False)
-        self.tovalues  = nn.Linear(5, 5*num_heads, bias=False)
+        self.tokeys    = nn.Linear(7, 7*num_heads, bias=False)
+        self.toqueries = nn.Linear(in_dim, 7*num_heads, bias=False)
+        self.tovalues  = nn.Linear(7, 7*num_heads, bias=False)
 
         # Feedforward network
-        self.hidden1 = nn.Linear(5*num_heads+in_dim, hidden_dim1)
+        self.hidden1 = nn.Linear(7*num_heads+in_dim, hidden_dim1)
         self.hidden2 = nn.Linear(hidden_dim1, hidden_dim2)
 
         self.out = nn.Linear(hidden_dim2, 1)
@@ -169,11 +166,13 @@ class CriticQ(nn.Module):
         self, 
         state:torch.Tensor, 
         action: torch.Tensor) -> torch.Tensor:
-        state = torch.cat((state, action), dim=-1)
 
         # First takes for all aircraft the first 4 entries of the state vector (x,y,vx,vy).
         rel_state_init = state[:,:,0:4]
-
+        # Concatenate the drift errors naively.
+        rel_drift_init = state[:,:,5:]
+        rel_state_init = torch.cat((rel_state_init,rel_drift_init),dim=-1)
+        state = torch.cat((state, action), dim=-1)
         h = self.num_heads
         b, t, k = rel_state_init.size()
         
@@ -247,12 +246,12 @@ class CriticV(nn.Module):
         self.num_heads = num_heads
 
         # Generate the transformer matrices
-        self.tokeys    = nn.Linear(5, 5*num_heads, bias=False)
-        self.toqueries = nn.Linear(in_dim, 5*num_heads, bias=False)
-        self.tovalues  = nn.Linear(5, 5*num_heads, bias=False)
+        self.tokeys    = nn.Linear(7, 7*num_heads, bias=False)
+        self.toqueries = nn.Linear(in_dim, 7*num_heads, bias=False)
+        self.tovalues  = nn.Linear(7, 7*num_heads, bias=False)
 
         # Feedforward network
-        self.hidden1 = nn.Linear(5*num_heads+in_dim, hidden_dim1)
+        self.hidden1 = nn.Linear(7*num_heads+in_dim, hidden_dim1)
         self.hidden2 = nn.Linear(hidden_dim1, hidden_dim2)
         self.out = nn.Linear(hidden_dim2, 1)
         self.out = init_layer_uniform(self.out)
@@ -263,6 +262,9 @@ class CriticV(nn.Module):
 
         # First takes for all aircraft the first 4 entries of the state vector (x,y,vx,vy).
         rel_state_init = state[:,:,0:4]
+        # Concatenate the drift errors naively. 
+        rel_drift_init = state[:,:,5:]
+        rel_state_init = torch.cat((rel_state_init,rel_drift_init),dim=-1)
 
         h = self.num_heads
         b, t, k = rel_state_init.size()

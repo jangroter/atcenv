@@ -2,6 +2,7 @@
 Environment module
 """
 import gym
+import pickle
 from typing import Dict, List
 from atcenv.definitions import *
 from gym.envs.classic_control import rendering
@@ -9,7 +10,6 @@ from shapely.geometry import LineString
 from .uncertainties import position_scramble, apply_wind, apply_position_delay
 
 import math as m
-# our own packages
 import numpy as np
 
 WHITE = [255, 255, 255]
@@ -44,14 +44,14 @@ class Environment(gym.Env):
     def __init__(self,
                  obs: str = 'absolute', 
                  num_flights: int = 1,
-                 dt: float = 5.,
-                 max_area: Optional[float] = 200. * 200.,
-                 min_area: Optional[float] = 125. * 125.,
+                 dt: float = 5,
+                 max_area: Optional[float] = 63. * 63.,
+                 min_area: Optional[float] = 40. * 40.,
                  max_speed: Optional[float] = 500.,
                  min_speed: Optional[float] = 400,
-                 max_episode_len: Optional[int] = 300,
+                 max_episode_len: Optional[int] = 150,
                  min_distance: Optional[float] = 5.,
-                 distance_init_buffer: Optional[float] = 5.,
+                 distance_init_buffer: Optional[float] = 2.,
                  **kwargs):
         """
         Initialises the environment
@@ -79,6 +79,8 @@ class Environment(gym.Env):
         self.dt = dt
 
         self.obs = obs
+        self.drift_array_eps = []
+        self.drift_array = [0]
 
         # tolerance to consider that the target has been reached (in meters)
         self.tol = self.max_speed * 1.05 * self.dt
@@ -114,8 +116,29 @@ class Environment(gym.Env):
                 f.airspeed = max(min(f.airspeed , self.max_speed), self.min_speed) # limit airspeed to the limits
 
                 it2 += 1
-        # RDC: here you should implement your resolution actions
+
+        return None
         ##########################################################
+
+    def resolution_mvp(self, action: List) -> None:
+        """
+        Applies the resolution actions for the MVP algorithm
+        If your policy can modify the speed, then remember to clip the speed of each flight
+        In the range [min_speed, max_speed]
+        :param action: list of resolution actions assigned to each flight
+        :return:
+        """
+
+        it2 = 0
+        for i, f in enumerate(self.flights):
+            if i not in self.done:
+                # Get new stuff
+                new_track = f.track + max(min(action[it2, 0], MAX_BEARING/8), -MAX_BEARING/8)
+                f.track = (new_track + u.circle) % u.circle
+                f.airspeed += max(min((action[it2, 1]), (self.max_speed - self.min_speed) /3), -(self.max_speed - self.min_speed) /3)
+                f.airspeed = max(min(f.airspeed , self.max_speed), self.min_speed) # limit airspeed to the limits
+
+                it2 += 1
         return None
         ##########################################################
 
@@ -124,8 +147,8 @@ class Environment(gym.Env):
         Returns the reward assigned to each agent
         :return: reward assigned to each agent
         """
-        weight_a    = -10 #-10
-        weight_b    = 1/5#1/5#1/5.
+        weight_a    = -1 #-10
+        weight_b    = 0.00127*5#0.01#1/5#1/5.
         weight_c    = 0#-150
         weight_d    = 0 #-0.001
         weight_e    = 0  
@@ -189,10 +212,14 @@ class Environment(gym.Env):
         """
         
         drift = np.zeros(self.num_flights)
+        drift_log = np.zeros(self.num_flights)
         for i, f in enumerate(self.flights):
             if i not in self.done:
-                drift[i] = 0.5 - abs(f.drift) #- abs(f.drift)**2 
-        
+                #drift[i] = - abs(f.drift)**2 #0.5 - abs(f.drift) #
+                drift[i] = -abs(f.drift)
+                drift_log[i] = -(1-np.cos(f.drift))
+
+        self.drift_array_eps.append(np.mean(drift_log))
         return drift
             
     def conflict_severity(self):
@@ -448,6 +475,46 @@ class Environment(gym.Env):
 
         return obs, rew, done_t, done_e, {}
 
+    def step_mvp(self, action: List,) -> Tuple[List, List, bool, Dict]:
+        """
+        Performs a simulation step
+
+        :param action: list of resolution actions assigned to each flight
+        :return: observation, reward, done status and other information
+        """
+        # apply resolution actions
+        self.resolution_mvp(action)
+
+        # update positions
+        self.update_positions()
+
+        # update done set
+        self.update_done()
+
+        # update conflict set
+        self.update_conflicts()
+
+        # compute reward
+        rew = self.reward()
+
+        # compute observation
+        obs = self.observation()
+
+        # increase steps counter
+        self.i += 1
+
+        # store difference from optimal speed
+        self.checkSpeedDif()
+
+        # check termination status
+        # termination happens when
+        # (1) all flights reached the target
+        # (2) the maximum episode length is reached
+        done_t = (self.i == self.max_episode_len) 
+        done_e = (len(self.done) == self.num_flights)
+
+        return obs, rew, done_t, done_e, {}
+    
     def checkSpeedDif(self):
         self.average_speed_dif = 0
         speed_dif = np.array([])
@@ -471,17 +538,50 @@ class Environment(gym.Env):
         self.flights = []
         tol = self.distance_init_buffer * self.tol
         min_distance = self.distance_init_buffer * self.min_distance
+        counter = 0
+
         while len(self.flights) < self.num_flights:
             valid = True
             candidate = Flight.random(self.airspace, self.min_speed, self.max_speed, tol)
-
+            
             # ensure that candidate is not in conflict
             for f in self.flights:
+                if counter == 250:
+                    self.airspace = Airspace.random(self.min_area, self.max_area)
+                    self.flights = []
+                    counter = 0
                 if candidate.position.distance(f.position) < min_distance:
                     valid = False
+                    counter += 1
                     break
             if valid:
                 self.flights.append(candidate)
+
+        # initialise steps counter
+        self.i = 0
+
+        # clean conflicts and done sets
+        self.conflicts = set()
+        self.done = set()
+
+        # return initial observation
+        return self.observation()
+    
+    def load_scenario(self, scenario_name, index, num_flights) -> List:
+        """
+        Loads the environment corresponding to the scenario and returns initial observation
+        :return: initial observation
+        """
+
+        self.num_flights = num_flights
+        # load scenario airspace
+        airspace_name = f'{scenario_name}airspace_{index}.p'
+        with open(airspace_name, 'rb') as handle:
+            self.airspace = pickle.load(handle)
+        
+        flights_name = f'{scenario_name}flights_{index}.p'
+        with open(flights_name, 'rb') as handle:
+            self.flights = pickle.load(handle)
 
         # initialise steps counter
         self.i = 0

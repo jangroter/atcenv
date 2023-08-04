@@ -147,6 +147,8 @@ cython_debug/
 
 # Results
 results/*
+models/*
+output_data/*
 
 tmp/*
 rewards.csv

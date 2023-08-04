@@ -1,0 +1,13 @@
+scenario:
+  num_episodes: 10
+  num_flights: 0
+  airspace_area: 20.
+  traffic_density: 0.5
+  test_scenario_dir: "hello"
+  num_test_episodes: 1
+  test_frequency: 1
+
+airspace:
+  class_path: atcenv.src.environment_objects.airspace.MixedAirspace
+
+

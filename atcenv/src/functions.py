@@ -3,6 +3,7 @@ import random
 import os
 from typing import Optional
 from shapely.geometry import Polygon, Point
+import numpy as np
 
 def bound_angle_positive_negative_pi(angle_radians: float) -> float:
     """ maps any angle in radians to the [-pi,pi] interval 
@@ -69,3 +70,16 @@ def check_dir_exist(directory: str, mkdir: Optional[bool] = False) -> bool:
     if not exist and mkdir:
         os.mkdir(directory)
     return exist
+def remove_diagonal(matrix: np.ndarray) -> np.ndarray:
+    """ Remove the diagonal from a square matrix
+    Parameters
+    __________
+    matrix: numpy array
+        input matrix, should be a square numpy array
+    
+    Returns
+    __________
+    matrix: numpy array
+        returns a new matrix with all diagonal elements removed
+    """
+    return matrix[~np.eye(matrix.shape[0],dtype=bool)].reshape(matrix.shape[0],-1)

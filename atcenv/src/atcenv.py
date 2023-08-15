@@ -1,36 +1,57 @@
+from atcenv.src.environment_objects.airspace import Airspace
+from atcenv.src.environment_objects.flight import Aircraft, Flight
+from atcenv.src.environment_objects.environment import Environment
+from atcenv.src.models.model import Model
+from atcenv.src.observation.observation import Observation
+from atcenv.src.reward.reward import Reward
+from atcenv.src.scenarios.scenario import Scenario
+from atcenv.src.logger.logger import Logger
+
+from typing import Tuple, Optional, List
 
 class AtcEnv():
     def __init__(self,
-                 env,
-                 model,
-                 scenario) -> None:
-        self.env = env
+                 environment: Environment,
+                 model: Model,
+                 scenario: Scenario,
+                 airspace: Airspace,
+                 aircraft: Aircraft,
+                 observation: Observation,
+                 reward: Reward,
+                 logger: Logger) -> None:
+        self.environment = environment
         self.model = model
         self.scenario = scenario
+        self.airspace = airspace
+        self.aircraft = aircraft
+        self.observation = observation
+        self.reward = reward
+        self.logger = logger
 
-    def run_scenario(self):
-        # while not finished all episodes:
-            # get new episode -> from scenario class -> should return flights and airspace class corresponding to scenario
-            # run episode
-        pass
+    def run_scenario(self) -> None:
+        while self.scenario.episode_counter < self.scenario.num_episodes:
+            airspace, flights, test = self.scenario.get_scenario(self.airspace,self.aircraft)
+            self.model.set_test(test)
+            self.environment.create_environment(airspace, flights)
+            self.run_episode(test)
 
-    def run_episode(self):
-        # reset episode with new flight and airspace class
-        # while episode not finished
-            # get_observation -> return observation vector (own class, also handles normalization)
-            # get_action -> from model class, list[n][i], n aircraft, i actions
-            # update environment to next state -> requires action
-            # get_new_observation -> same function as get_observation
-            # get_reward -> return score scalar (maybe own class)
-            # store_transition -> model specific, give environment class copy + observations and rewards
-        # store_episode -> stores information of the episode for logging
-        pass
-
-    def start_episode(self):
-        pass
+    def run_episode(self, test: bool) -> None:
+        self.logger.initialize_episode()
+        new_observation = self.observation.get_observation(self.environment.flights)
+        while not self.environment.done:
+            observation = new_observation
+            action = self.model.get_action(observation)
+            done = self.environment.step(action)
+            new_observation = self.observation.get_observation(self.environment.flights)
+            reward = self.reward.get_reward(self.environment.flights)
+            self.store_transition(observation,action,new_observation,reward,done)
+        self.store_episode()
 
     def store_episode(self):
-        pass
+        self.logger.store_episode()
+    
+    def store_transition(self, observation, action, new_observation, reward, done):
+        self.logger.store_transition(self.environment)
+        self.model.store_transition(observation,action,new_observation,reward,done)
 
-    def load_scenario(self):
-        pass
+        

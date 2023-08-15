@@ -310,7 +310,7 @@ class Scenario():
             self.num_flights = math.ceil((self.airspace_area * self.traffic_density) / u.traffic_density_to_NM2)
 
         else:
-            raise("Atleast 2 out of 3 attributes of num_flights, traffic_density and airspace_area must be non-zero")
+            raise Exception("Atleast 2 out of 3 attributes of num_flights, traffic_density and airspace_area must be non-zero")
         
     def check_num_test_episodes(self) -> None:
         if self.num_test_episodes != 0:

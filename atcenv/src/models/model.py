@@ -23,4 +23,7 @@ class Model(ABC):
     @abstractmethod
     def store_transition(self, *args) -> None:
         pass
-    
+
+    @abstractmethod
+    def set_test(self, test: bool) -> None:
+        pass

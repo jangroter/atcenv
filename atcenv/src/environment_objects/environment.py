@@ -1,73 +1,39 @@
-import gym
-from typing import List, Dict, Tuple
+from shapely.geometry import Point, Polygon
+from typing import Tuple, Optional, List
+import math
+import random
+import numpy as np
+import pickle
 
-class Environment():
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+
+import atcenv.src.functions as fn
+from atcenv.src.environment_objects.flight import Flight
+from atcenv.src.environment_objects.airspace import Airspace
+
+
+class Environment(ABC):
+
     def __init__(self,
-                 dt: float = 5,
-                 max_area: float = 63. * 63., # maybe makes more sense under the Airspace class
-                 min_area: float = 40. * 40., 
-                 max_speed: float = 500., # maybe makes more sense under the Flight class
-                 min_speed: float = 400.,
-                 min_distance: float = 5.,
-                 distance_init_buffer: float = 2.) -> None:
-
+                 dt: Optional[float] = 5,
+                 max_episode_len: Optional[int] = 150):
         self.dt = dt
-        self.max_area = max_area
-        self.min_area = min_area
-        self.max_speed = max_speed
-        self.min_speed = min_speed
-        self.min_distance = min_distance
-        self.distance_init_buffer = distance_init_buffer
-    
-    def step(self, actions: List) -> None:
-        """ Perform  a single simulation step in the environment.
+        self.max_episode_len = max_episode_len
 
-        Parameters
-        __________
-        actions: list of actions to perform 
-            action[n][0]: float, heading change for aircraft n in radians 
-            action[n][1]: float, speed change for aircraft n in knots
-        
-        Returns
-        __________
-        None
-        """
+        self.airspace = None
+        self.flights = None
+        self.done = False
+
+        self.counter = 0
+
+    def create_environment(self, airspace: Airspace, flights: Flight):
+        self.done = False
+        self.airspace = airspace
+        self.flights = flights
+        self.counter = 0
+
+    @abstractmethod
+    def step(self, action: np.ndarray) -> bool:
         pass
-
-    def reset(self):
-        pass
-
-    def get_scenario(self):
-        """ Should probably be a class that gets called to allow easy change of scenario types """
-        pass
-
-    def load_scenario(self):
-        pass
-
-    def create_scenario(self):
-        pass
-
-    def save_scenario(self):
-        pass
-
-    def get_observation(self):
-        """ Should probably be a class that gets called to allow easy change of observation vector """
-        pass
-
-    def get_score(self):
-        """ Should probably be a class that gets called to allow easy change of score calculation """
-        pass
-
-    def update_position(self):
-        pass
-
-    def update_velocity(self):
-        pass
-
-    def render_viewer(self):
-        pass
-
-    def close_viewer(self):
-        pass
-
 

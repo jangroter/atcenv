@@ -92,6 +92,8 @@ class Local(Observation):
             observation = self.normalize_observation(observation)
         if self.create_normalization_data:
             self.add_normalization_data(observation)
+
+        return observation
         
 
     def normalize_observation(self, observation: List[np.ndarray]) -> List[np.ndarray]:
@@ -101,22 +103,56 @@ class Local(Observation):
         pass
 
     def create_observation_vectors(self, flights: List[Flight]) -> np.ndarray:
+        """ Uses a list of all flight objects to construct the observation vector
+        for all flights from a local perspective. 
         
-        dx_rel, dy_rel, distances, vx, vy, d_track = self.get_observation_matrices(flights)
+        Priority for the creation of the
+        state vector is based on the distance between the aircraft, with lowest
+        distance having the highest priority.
 
-        # Sort all arrays on minimum distances observed in the rows
+        If not enough flights are present to create a full observation vector
+        the missing values will be padded with zeroes.
+
+        Observation vector for each aircraft (each row) is:
+            [airspeed,
+            sin(drift),
+            cos(drift),
+            relative x position * number of aircraft in the state,
+            relative y position * number of aircraft in the state,
+            relative x velocity * number of aircraft in the state,
+            relative y velocity * number of aircraft in the state,
+            sin(relative track) * number of aircraft in the state,
+            cos(relative track) * number of aircraft in the state,
+            relative distance * number of aircraft in the state]
+
+        Parameters
+        __________
+        flights: List[Flight]
+            list of all the flight objects currently present in the airspace
+        
+        Returns
+        __________
+        observation: numpy array
+            2D matrix, containing in each row the observation vector for a given flight
+        """
+        
+        dx_rel, dy_rel, distances, vx, vy, d_track = self.get_relative_observation(flights)
+
+        # Sort all arrays on minimum distances observed in the rows, pad with zeroes to ensure filled vector
         min_dist_index = np.argsort(distances)
-        dx_rel = np.take_along_axis(dx_rel, min_dist_index, axis=1)
-        dy_rel = np.take_along_axis(dy_rel, min_dist_index, axis=1)
-        vx = np.take_along_axis(vx, min_dist_index, axis=1)
-        vy = np.take_along_axis(vy, min_dist_index, axis=1)
+        dx_rel = np.hstack((np.take_along_axis(dx_rel, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        dy_rel = np.hstack((np.take_along_axis(dy_rel, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        vx = np.hstack((np.take_along_axis(vx, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        vy = np.hstack((np.take_along_axis(vy, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
         d_track = np.take_along_axis(d_track, min_dist_index, axis=1)
-        distances = np.take_along_axis(distances, min_dist_index, axis=1)
+        sin_track = np.hstack((np.sin(d_track),np.zeros((len(flights),self.num_ac_state))))
+        cos_track = np.hstack((np.cos(d_track),np.zeros((len(flights),self.num_ac_state))))
+        distances = np.hstack((np.take_along_axis(distances, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
 
-        airspeed = np.sin(np.array([f.airspeed for f in flights])[:,np.newaxis])
+        # Create own information vectors
+        airspeed = np.array([f.airspeed for f in flights])[:,np.newaxis]
         sin_drift = np.sin(np.array([f.drift for f in flights])[:,np.newaxis])
-        cos_drift = np.sin(np.array([f.drift for f in flights])[:,np.newaxis])
-
+        cos_drift = np.cos(np.array([f.drift for f in flights])[:,np.newaxis])
 
         observation = np.hstack((airspeed,
                                  sin_drift,
@@ -125,16 +161,48 @@ class Local(Observation):
                                  dy_rel[:,0:self.num_ac_state],
                                  vx[:,0:self.num_ac_state],
                                  vy[:,0:self.num_ac_state],
-                                 d_track[:,0:self.num_ac_state],
+                                 sin_track[:,0:self.num_ac_state],
+                                 cos_track[:,0:self.num_ac_state],
                                  distances[:,0:self.num_ac_state]))
         
         if len(observation[0]) != self.observation_size:
-            raise(f'Observation vector contains {observation[0]} elements, but {self.observation_size} elements where specified in init')
+            raise Exception(f"Observation vector contains {len(observation[0])} elements, but {self.observation_size} elements where specified in init")
 
         return observation
 
-    def get_observation_matrices(self, flights: List[Flight]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, 
+    def get_relative_observation(self, flights: List[Flight]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, 
                                                                        np.ndarray, np.ndarray, np.ndarray]:
+        """ Returns 6 matrices, dx_rel, dy_rel, distances, vx, vy and d_track, 
+        these are the relative state arrays for all the aircraft in the airspace
+        excluding the states relative to the ownship. (e.g. diagonals are removed)
+
+        Indexing [i,j] gives corresponding state of j relative to i.
+
+        Parameters
+        __________
+        flights: List[Flight]
+            list of all the flight objects currently present in the airspace
+        
+        Returns
+        __________
+        dx_rel: numpy array
+            2D numpy array with all the relative x positions w.r.t direction of flight
+
+        dy_rel: numpy array
+            2D numpy array with all the relative y positions w.r.t direction of flight
+        
+        distances: numpy array
+            2D numpy array with all the relative distances between the aircraft
+        
+        vx: numpy array
+            2D numpy array with all the relative x velocities w.r.t direction of flight
+
+        vy: numpy array
+            2D numpy array with all the relative y velocities w.r.t direction of flight
+
+        d_track: numpy array
+            2D numpy array with all the relative track angles of the aircraft in radians
+        """
 
         x = np.array([f.position.x for f in flights])
         y = np.array([f.position.y for f in flights])
@@ -158,6 +226,31 @@ class Local(Observation):
         return dx_rel, dy_rel, distances, vx, vy, d_track
 
     def get_distance_matrices(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """ Returns 3 square matrices, dx, dy and distances, where dx and dy are the 
+        relative x and y positions in the earth references frame. distances is the 
+        relative distance between all the aircraft.
+
+        Indexing [i,j] gives speed of j relative to i.
+
+        Parameters
+        __________
+        x: numpy array
+            1D numpy array with all of the x positions in earth reference frame
+        
+        y: numpy array
+            1D numpy array with all of the y positions in earth reference frame
+        
+        Returns
+        __________
+        dx: numpy array
+            2D numpy array with all the relative x positions in the earth reference frame
+
+        dy: numpy array
+            2D numpy array with all the relative y positions in the earth reference frame
+        
+        distances: numpy array
+            2D numpy array with all the relative distances between the aircraft
+        """
         
         x_i = x[:, np.newaxis]
         x_j = x[np.newaxis, :]
@@ -173,6 +266,33 @@ class Local(Observation):
         return dx, dy, distances
     
     def get_relative_xy(self, dx: np.ndarray, dy: np.ndarray, tracks: np.ndarray, distances: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """ Returns 2 square matrices, dx_rel and dy_rel, with for each row the distances 
+        of all aircraft, with positive y in the direction of flight.
+
+        Indexing [i,j] gives speed of j relative to i.
+
+        Parameters
+        __________
+        dx: numpy array
+            2D numpy array with all of the relative x positions in earth reference frame
+        
+        dy: numpy array
+            2D numpy array with all of the relative y positions in earth reference frame
+
+        tracks: numpy array
+            1D numpy array with all the track angles in radians, 0rad north.
+        
+        distances: numpy array
+            2D numpy array with all the relative distances between the aircraft
+        
+        Returns
+        __________
+        dx_rel: numpy array
+            2D numpy array with all the relative x positions w.r.t direction of flight
+
+        dy_rel: numpy array
+            2D numpy array with all the relative y positions w.r.t direction of flight
+        """
 
         bearing = np.arctan2(dx, dy)                         
         bearing_rel = bearing - tracks[:,np.newaxis]
@@ -183,6 +303,27 @@ class Local(Observation):
         return dx_rel, dy_rel
         
     def get_relative_vxvy(self, v: np.ndarray, tracks: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """ Returns 2 square matrices, vx and vy, with for each row the velocities of 
+        all aircraft, with positive y in the direction of flight.
+
+        Indexing [i,j] gives speed of j relative to i.
+
+        Parameters
+        __________
+        v: numpy array
+            1D numpy array with all of the velocities of all aircraft
+
+        tracks: numpy array
+            1D numpy array with all the track angles in radians, 0rad north.
+        
+        Returns
+        __________
+        vx: numpy array
+            2D numpy array with all the relative x velocities w.r.t direction of flight
+
+        vy: numpy array
+            2D numpy array with all the relative y velocities w.r.t direction of flight
+        """
         
         tracks_rel = tracks - tracks[:,np.newaxis]
         

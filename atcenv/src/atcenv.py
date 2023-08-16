@@ -22,7 +22,7 @@ class AtcEnv():
         self.environment = environment
         self.model = model
         self.scenario = scenario
-        self.airspace = airspace
+        self.airspace_template = airspace
         self.aircraft = aircraft
         self.observation = observation
         self.reward = reward
@@ -30,9 +30,9 @@ class AtcEnv():
 
     def run_scenario(self) -> None:
         while self.scenario.episode_counter < self.scenario.num_episodes:
-            airspace, flights, test = self.scenario.get_scenario(self.airspace,self.aircraft)
+            airspace, flights, test = self.scenario.get_scenario(self.airspace_template,self.aircraft)
             self.model.set_test(test)
-            self.environment.create_environment(airspace, flights)
+            self.environment.create_environment(airspace, flights, episode = self.scenario.episode_counter)
             self.run_episode(test)
 
     def run_episode(self, test: bool) -> None:

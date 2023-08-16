@@ -1,13 +1,38 @@
+environment:
+  class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
+  init_args:
+    render_frequency: 1
+
+model:
+  class_path: atcenv.src.models.model.Straight
+
 scenario:
   num_episodes: 10
-  num_flights: 0
-  airspace_area: 20.
-  traffic_density: 0.5
+  num_flights: 10
+  airspace_area: 10000000000
+  traffic_density: 0
   test_scenario_dir: "hello"
-  num_test_episodes: 1
-  test_frequency: 1
+  num_test_episodes: 0
+  test_frequency: 0
 
 airspace:
-  class_path: atcenv.src.environment_objects.airspace.MixedAirspace
+  class_path: atcenv.src.environment_objects.airspace.EnrouteAirspace
 
+aircraft:
+  min_speed: 200
+  max_speed: 250
+  min_distance: 10000
 
+observation:
+  class_path: atcenv.src.observation.observation.Local
+  init_args:
+    observation_size: 17
+    normalize_data: False
+
+reward:
+  class_path: atcenv.src.reward.reward.NoReward
+
+logger:
+  class_path: atcenv.src.logger.logger.NoLogger
+  init_args:
+    verbose: False

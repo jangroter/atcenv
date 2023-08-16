@@ -101,7 +101,7 @@ class Scenario():
     random_seed: Optional[int] = 1
     save_scenarios: Optional[bool] = False
 
-    airspace_area_margin: Optional[float] = 1.1
+    airspace_area_margin: Optional[float] = 1.25
 
     def __post_init__(self) -> None:
         self.episode_counter = 0
@@ -142,18 +142,18 @@ class Scenario():
         if self.test_frequency == 0:
             self.episode_counter += 1
             test = False
-            return self.create_scenario(airspace, aircraft_type), test
+            return *self.create_scenario(airspace, aircraft_type), test
         
         elif self.episode_counter % self.test_frequency != 0:
             self.episode_counter += 1
             test = False
-            return self.create_scenario(airspace, aircraft_type), test
+            return *self.create_scenario(airspace, aircraft_type), test
         
         else:
             self.test_counter += 1
             self.reset_counters()
             test = True
-            return self.load_scenario(), test
+            return *self.load_scenario(), test
 
     def create_scenario(self, airspace: Airspace, aircraft_type: Aircraft) -> Tuple[Airspace, List[Flight]]:
         """ creates a random scenario, based on the reference airspace and aircraft type

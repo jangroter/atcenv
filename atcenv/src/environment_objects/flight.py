@@ -19,7 +19,7 @@ class Aircraft:
 @dataclass
 class Flight:
 
-    ac_type: Aircraft
+    aircraft: Aircraft
 
     position: Point
     target: Point
@@ -63,8 +63,14 @@ class Flight:
         drift = self.bearing - self.track
         return fn.bound_angle_positive_negative_pi(drift)
 
+    @property
+    def prediction(self, dt: Optional[float] = 20) -> Point:
+        """ Predicted position of the aircraft given current velocity and lookahead time, dt """
+        vx, vy = self.components
+        return Point([self.position.x + vx * dt, self.position.y + vy * dt])
+
     @classmethod
-    def random(cls, airspace: Airspace, ac_type: Aircraft, tol: float = 0):
+    def random(cls, airspace: Airspace, aircraft: Aircraft, tol: float = 0):
         """ Creates a random flight 
 
         Parameters
@@ -86,8 +92,8 @@ class Flight:
             randomly created flight object in accordance with the Airspace type
         """
 
-        position, target, optimal_airspeed, flight_type = airspace.random_flight(ac_type.min_speed, ac_type.max_speed, tol)
-        return cls(ac_type = ac_type,
+        position, target, optimal_airspeed, flight_type = airspace.random_flight(aircraft.min_speed, aircraft.max_speed, tol)
+        return cls(aircraft = aircraft,
                    position = position, 
                    target = target,
                    optimal_airspeed = optimal_airspeed, 

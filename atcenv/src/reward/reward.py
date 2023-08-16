@@ -19,3 +19,8 @@ class Reward(ABC):
     @abstractmethod
     def get_reward(self, flights: List[Flight]) -> np.ndarray:
         pass
+
+class NoReward(Reward):
+
+    def get_reward(self, flights: List[Flight]) -> np.ndarray:
+        return np.zeros((len(flights),1))

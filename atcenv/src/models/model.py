@@ -27,3 +27,14 @@ class Model(ABC):
     @abstractmethod
     def set_test(self, test: bool) -> None:
         pass
+
+class Straight(Model):
+
+    def get_action(self, observation: np.ndarray) -> np.ndarray:
+        return np.zeros((len(observation),2))
+    
+    def store_transition(self, *args) -> None:
+        pass
+    
+    def set_test(self, test: bool) -> None:
+        pass

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class Logger(ABC):
     def __init__(self,
-                 verbose):
+                 verbose: bool):
         self.verbose = verbose
     
     @abstractmethod
@@ -17,4 +17,13 @@ class Logger(ABC):
     def store_episode(self, *args):
         pass
 
-    
+class NoLogger(Logger):
+
+    def initialize_episode(self, *args):
+        pass
+
+    def store_transition(self, *args):
+        pass
+
+    def store_episode(self, *args):
+        pass

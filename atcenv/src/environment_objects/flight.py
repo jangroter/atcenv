@@ -9,6 +9,22 @@ from atcenv.src.environment_objects.airspace import Airspace
 
 @dataclass
 class Aircraft:
+    """ Aircraft class
+
+    Attributes
+    ___________
+    min_speed: float 
+        minimum speed of this aircraft type, m/s
+    max_speed: float
+        maximum speed of this aircraft type, m/s
+    min_distance: float
+        minimum horizontal separation between this aircraft and others, m
+
+    Methods
+    ___________
+    None
+
+    """
 
     min_speed: float
     max_speed: float
@@ -18,6 +34,48 @@ class Aircraft:
 
 @dataclass
 class Flight:
+    """ Flight class
+
+    Attributes
+    ___________
+    aircraft: Aircraft
+        Aircraft object that this flight belongs to
+    position: shapely.geometry.Point
+        current position of the aircraft in x and y, m
+    target: shapely.geometry.Point
+        current destination of the aircraft in x and y, m
+    optimal_airspeed: float
+        optimal airspeed for this flight, m/s
+    flight_type: str
+        type of flight of this aircraft, e.g. enroute or merging
+        used for determining the waypoints
+    airspeed: float
+        current airspeed of the aircraft, m/s
+    track: float
+        current track of the aircraft, zero heading North, radians
+
+    Properties
+    ___________
+    bearing: float
+        bearing from the current position to the target, zero North, radians
+    components: tuple(float, float)
+        x and y speed components (in m/s, eastbound & northbound positive)
+    distance: float
+        current distance to the target, m
+    drift: float
+        drift angle (difference between track and bearing) to the target, radians
+    prediction: shapely.geometry.Point
+        predicted position of the aircraft given current velocity and lookahead time, m
+    
+
+    Methods
+    ___________
+    random(airspace, aircraft, tol) -> Flight object
+        class method that returns a random Flight object 
+    set_waypoint(self, waypoint, airspace) -> None
+        updates self.target using a user specified waypoint or the airspace object
+
+    """
 
     aircraft: Aircraft
 
@@ -46,7 +104,7 @@ class Flight:
     
     @property
     def components(self) -> Tuple[float, float]:
-        """ X and Y speed components (in knots, eastbound & northbound positive) """
+        """ X and Y speed components (in m/s, eastbound & northbound positive) """
         dx = self.airspeed * math.sin(self.track)
         dy = self.airspeed * math.cos(self.track)
 

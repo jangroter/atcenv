@@ -12,6 +12,40 @@ import atcenv.src.functions as fn
 from atcenv.src.environment_objects.flight import Flight
 
 class Observation(ABC):
+    """ Observation class
+
+    Attributes
+    ___________
+    observation_size: int
+        number of elements in each observation vector
+    normalize_data: bool
+        boolean variable on whether or not to normalize the observation vector
+        actual normalization depends on the implemented method.
+    create_normalization_data: bool
+        boolean variable for using new data to construct the mean and std used
+        for normalization
+    normalization_data_dir: string
+        directory to load from or save to for the normalization data
+    normalization_samples: int
+        number of samples required for constructing the normalization data
+
+    Methods
+    ___________
+    get_observation(self, flights) -> observation 
+        abstract method that given a list of flights returns 
+        the observation vector for all flights
+    normalize_observation(self, observation) -> observation
+        abstract method that given an observation, normalizes it
+    add_normalization_data(self, observation) -> None
+        abstract method that stores the observation in an array for
+        constructing the mean and std of the samples
+    load_normalization_data(self) -> None
+        loads the normalization data into self.means and self.stds
+    save_normalization_data(self) -> None
+        saves the means and stds to a pickle file when enough samples 
+        have been obtained
+
+    """
 
     def __init__(self,
                  observation_size: int,
@@ -31,18 +65,67 @@ class Observation(ABC):
         self.load_normalization_data()
 
     @abstractmethod
-    def get_observation(self, flights: List[Flight]) -> List[np.ndarray]:
+    def get_observation(self, flights: List[Flight]) -> np.ndarray:
+        """ return an observation vector for all flights in "flights"
+
+        Parameters
+        __________
+        flights: List[Flight]
+            list of Flight objects for which the observation vector needs to be constructed
+        
+        Returns
+        __________
+        observation: numpy array
+            numpy array with in each row the observation vector for a flight
+        """
         pass
     
     @abstractmethod
-    def normalize_observation(self, observation: List[np.ndarray]) -> List[np.ndarray]:
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+        """ returns a normalized version of the input observation array
+
+        Parameters
+        __________
+        observation: numpy array
+            observation array to normalize
+        
+        Returns
+        __________
+        observation: numpy array
+            normalized observation array
+        """
         pass
     
     @abstractmethod
-    def add_normalization_data(self, observation: List[np.ndarray]) -> None:
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+        """ add observation data to a memory that can be used to 
+        construct the mean and standard deviation of each sample for normalization
+
+        Parameters
+        __________
+        observation: numpy array
+            observation array to store in the memory
+
+        Returns
+        __________
+        None
+
+        """
         pass
 
     def load_normalization_data(self) -> None:
+        """ loads normalization data into self.means and self.stds
+        according to the data provided in normalization_data_dir
+
+        Parameters
+        __________
+        None
+        
+        Returns
+        __________
+        None
+
+        """
 
         if not self.normalize_data and not self.create_normalization_data:
             return
@@ -69,23 +152,75 @@ class Observation(ABC):
                 print('Provided path to folder did not yet exist, creating path')
 
     def save_normalization_data(self) -> None:
+        """ construct the means and standard deviations generated 
+        through add_normalization_data and saves them into normalization_data_dir
+
+        Parameters
+        __________
+        None
+        
+        Returns
+        __________
+        None
+
+        """
         pass
 
 class Local(Observation):
+    """ Local observation class, inherits from Observation
+
+    This observation class uses local information relative from the 
+    perspective of the ownship to construct the observation vector.
+    This includes, position, speeds and relative heading (redundant with speeds)
+
+    Attributes
+    ___________
+    observation_size: int
+        number of elements in each observation vector
+    normalize_data: bool
+        boolean variable on whether or not to normalize the observation vector
+        actual normalization depends on the implemented method.
+    num_ac_state: int
+        number of aircraft to include in the state vector
+    create_normalization_data: bool
+        boolean variable for using new data to construct the mean and std used
+        for normalization
+    normalization_data_dir: string
+        directory to load from or save to for the normalization data
+    normalization_samples: int
+        number of samples required for constructing the normalization data
+    
+
+    Methods
+    ___________
+    get_observation(self, flights) -> observation 
+        abstract method that given a list of flights returns 
+        the observation vector for all flights
+    normalize_observation(self, observation) -> observation
+        abstract method that given an observation, normalizes it
+    add_normalization_data(self, observation) -> None
+        abstract method that stores the observation in an array for
+        constructing the mean and std of the samples
+    load_normalization_data(self) -> None
+        loads the normalization data into self.means and self.stds
+    save_normalization_data(self) -> None
+        saves the means and stds to a pickle file when enough samples 
+        have been obtained
+
+    """
 
     def __init__(self,
                  observation_size: int,
                  normalize_data: bool,
+                 num_ac_state: Optional[int] = 2,
                  create_normalization_data: Optional[bool] = False,
                  normalization_data_dir: Optional[str] = None,
-                 normalization_samples: Optional[int] = 250000,
-                 num_ac_state: Optional[int] = 2):
+                 normalization_samples: Optional[int] = 250000):
         super().__init__(observation_size, normalize_data, create_normalization_data, 
                          normalization_data_dir, normalization_samples)
         self.num_ac_state = num_ac_state
 
-    def get_observation(self, flights: List[Flight]) -> List[np.ndarray]:
-
+    def get_observation(self, flights: List[Flight]) -> np.ndarray:
         observation = self.create_observation_vectors(flights)
 
         if self.normalize_data:
@@ -95,8 +230,7 @@ class Local(Observation):
 
         return observation
         
-
-    def normalize_observation(self, observation: List[np.ndarray]) -> List[np.ndarray]:
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
         pass
 
     def add_normalization_data(self):
@@ -332,9 +466,9 @@ class Local(Observation):
 
         return vx, vy
 
-
 class Global(Observation):
 
     def get_observation(self, flights: List[Flight]) -> List[np.ndarray]:
+        raise Exception("Global(Observation) not yet properly implemented")
         return super().get_observation(flights)
 

@@ -10,7 +10,7 @@ import atcenv.src.functions as fn
 
 @dataclass
 class Airspace(ABC):
-    """ Airspace class
+    """ Airspace base class
 
     Attributes
     ___________

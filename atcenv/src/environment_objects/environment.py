@@ -18,6 +18,39 @@ from atcenv.src.environment_objects.airspace import Airspace
 
 
 class Environment(ABC):
+    """ Environment base class
+
+    Attributes
+    ___________
+    dt: float
+        timestep used for the simulations, s
+    max_episode_len: int
+        maximum number of timesteps that a single episode takes
+    max_speed_change: float
+        maximum speed change per timestep for each flight, m/s
+    max_heading_change: float
+        maximum heading change per timestep, rad or deg
+    use_degrees: bool
+        boolean variable for if max_heading_change is in rad or deg
+    render_frequency: int
+        how often a scenario will be rendered, 0 means never
+    
+    Methods
+    ___________
+    create_environment(self, airspace, flights, episode) -> None
+        initializes a new environment
+    step(self, action) -> bool
+        progresses the simulation to the next state using the provided 
+        actions and simulation timestep dt, returns a done flag
+    update_conflicts(self) -> None
+        updates the conflict set object of all aircraft 
+        that are currently too close
+    render(self) -> None
+        updates the render window with the newest state
+    close(self) -> None
+        closes the render window
+
+    """
 
     def __init__(self,
                  dt: Optional[float] = 5.,
@@ -25,8 +58,7 @@ class Environment(ABC):
                  max_speed_change: Optional[float] = 50.,
                  max_heading_change: Optional[float] = 25.,
                  use_degrees: bool = True,
-                 render_frequency: int = 0,
-                 episode: int = 0):
+                 render_frequency: int = 0):
         self.dt = dt
         self.max_episode_len = max_episode_len
         self.max_speed_change = max_speed_change
@@ -38,12 +70,29 @@ class Environment(ABC):
         self.conflicts = set() 
 
         self.render_frequency = render_frequency
-        self.episode = episode
+        self.episode = None
         self.viewer = None
 
         self.counter = 0
 
-    def create_environment(self, airspace: Airspace, flights: List[Flight], episode: int = 0):
+    def create_environment(self, airspace: Airspace, flights: List[Flight], episode: int = 0) -> None:
+        """ Creates a new environment based on the provided initial conditions
+
+        Parameters
+        __________
+        airspace: Airspace
+            Airspace object for this scenario
+        flights: List[Flight]
+            list of Flight objects for this scenario
+        episode: int
+            episode number, used for determining rendering
+        
+        
+        Returns
+        __________
+        None
+
+        """
         self.airspace = airspace
         self.flights = flights
         self.episode = episode
@@ -52,9 +101,37 @@ class Environment(ABC):
 
     @abstractmethod
     def step(self, action: np.ndarray) -> bool:
+        """ Progresses the environment to the next state
+
+        Parameters
+        __________
+        action: numpy array
+            action array of size = (number of flights, number of actions)
+        
+        Returns
+        __________
+        done: bool
+            boolean variable for the done flag, if True, episode has terminated
+            
+        """
         pass
 
     def update_conflicts(self) -> None:
+        """ Updates set of currently active conflicts
+
+        Loops through all flights currently in the environment and checks the
+        relative distance. If the distance is smaller than the minimum distance for 
+        either one of the aircraft, they are added to the conflict set.
+
+        Parameters
+        __________
+        None
+
+        Returns
+        __________
+        None
+
+        """
 
         self.conflicts = set()
 
@@ -64,7 +141,18 @@ class Environment(ABC):
                 if distance < self.flights[i].aircraft.min_distance and i != j:
                     self.conflicts.update((i, j))
 
-    def render(self, mode=None) -> None:
+    def render(self) -> None:
+        """ Creates a render of the current state of the environment
+
+        Parameters
+        __________
+        None
+        
+        Returns
+        __________
+        None
+
+        """
 
         if self.viewer is None:
             # initialise viewer
@@ -114,15 +202,74 @@ class Environment(ABC):
         self.viewer.render()
 
     def close(self) -> None:
+        """ Closes the current render
+
+        Parameters
+        __________
+        None
+        
+        Returns
+        __________
+        None
+
+        """
 
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
 
 class DefaultEnvironment(Environment):
+    """ Default environment, inherits from Environment
+
+    Attributes
+    ___________
+    dt: float
+        timestep used for the simulations, s
+    max_episode_len: int
+        maximum number of timesteps that a single episode takes
+    max_speed_change: float
+        maximum speed change per timestep for each flight, m/s
+    max_heading_change: float
+        maximum heading change per timestep, rad or deg
+    use_degrees: bool
+        boolean variable for if max_heading_change is in rad or deg
+    render_frequency: int
+        how often a scenario will be rendered, 0 means never
+    
+    Methods
+    ___________
+    create_environment(self, airspace, flights, episode) -> None
+        initializes a new environment
+    step(self, action) -> bool
+        progresses the simulation to the next state using the provided 
+        actions and simulation timestep dt, returns a done flag
+    update_conflicts(self) -> None
+        updates the conflict set object of all aircraft 
+        that are currently too close
+    render(self) -> None
+        updates the render window with the newest state
+    close(self) -> None
+        closes the render window
+
+    """
 
     def step(self, action: np.ndarray) -> bool:
+        """ Progresses the environment to the next state
 
+        This implementation uses direct propagation of the state
+        and next state adaption. No dynamics involved.
+
+        Parameters
+        __________
+        action: numpy array
+            action array of size = (number of flights, number of actions)
+        
+        Returns
+        __________
+        done: bool
+            boolean variable for the done flag, if True, episode has terminated
+            
+        """
         self.counter += 1
 
         d_heading = np.clip(action[:,0], -self.max_heading_change, self.max_heading_change)
@@ -130,7 +277,6 @@ class DefaultEnvironment(Environment):
         
         for flight, dh, dv in zip(self.flights, d_heading, d_velocity):
 
-            old_track = flight.track
             flight.track = ((flight.track + dh) + u.circle) % u.circle  # Bound the new track between 0 and 2*pi
 
             flight.airspeed = np.clip(flight.airspeed+dv, flight.aircraft.min_speed, flight.aircraft.max_speed)

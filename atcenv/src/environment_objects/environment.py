@@ -4,6 +4,7 @@ import math
 import random
 import numpy as np
 import pickle
+import time
 
 from gym.envs.classic_control import rendering
 from shapely.geometry import LineString
@@ -200,6 +201,8 @@ class Environment(ABC):
             self.viewer.add_onetime(circle)
 
         self.viewer.render()
+        time.sleep(0.01)
+
 
     def close(self) -> None:
         """ Closes the current render
@@ -213,10 +216,12 @@ class Environment(ABC):
         None
 
         """
-
         if self.viewer is not None:
-            self.viewer.close()
-            self.viewer = None
+            try:
+                self.viewer.close()
+                self.viewer = None
+            except AttributeError as e:
+                pass
 
 class DefaultEnvironment(Environment):
     """ Default environment, inherits from Environment
@@ -294,7 +299,7 @@ class DefaultEnvironment(Environment):
         if self.render_frequency != 0 and self.episode % self.render_frequency == 0:
             self.render()
         
-        if self.counter > self.max_episode_len:
+        if self.counter >= self.max_episode_len:
             self.done = True
             self.close()
         

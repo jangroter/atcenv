@@ -1,4 +1,5 @@
 from jsonargparse import CLI
+import sys
 
 from atcenv.src.atcenv import AtcEnv
 
@@ -10,10 +11,11 @@ from atcenv.src.observation.observation import Observation
 from atcenv.src.reward.reward import Reward
 from atcenv.src.scenarios.scenario import Scenario
 from atcenv.src.logger.logger import Logger
-import sys
 
+import atcenv.src.functions as fn
 
-def main(environment: Environment,
+def main(experiment_name: str,
+        environment: Environment,
         model: Model,
         scenario: Scenario,
         airspace: Airspace,
@@ -21,12 +23,9 @@ def main(environment: Environment,
         observation: Observation,
         reward: Reward,
         logger: Logger):
-    """
-    Main should start the scenario's and run them, as input it should take the CR class, the environment class
-    and all other important parameters required for running it. 
 
-    It should start a thread from which the simulations will be run
-    """
+    experiment_folder = logger.setup_experiment(experiment_name, config_file = sys.argv[2])
+    model.setup_model(experiment_folder)
 
     atcenv = AtcEnv(environment=environment,
                     model=model,
@@ -38,12 +37,6 @@ def main(environment: Environment,
                     logger=logger)
     
     atcenv.run_scenario()
-    
-    # Initiliaze folder structure for saving and loading if neccessary
-    # Initiliaze classes with proper values
-
-    # Start scenario
-
 
 if __name__ == '__main__':
     if '--config' in sys.argv:

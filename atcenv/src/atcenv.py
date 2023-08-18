@@ -36,7 +36,7 @@ class AtcEnv():
             self.run_episode(test)
 
     def run_episode(self, test: bool) -> None:
-        self.logger.initialize_episode()
+        self.logger.initialize_episode(self.scenario.episode_counter)
         new_observation = self.observation.get_observation(self.environment.flights)
         while not self.environment.done:
             observation = new_observation
@@ -51,7 +51,7 @@ class AtcEnv():
         self.logger.store_episode()
     
     def store_transition(self, observation, action, new_observation, reward, done):
-        self.logger.store_transition(self.environment)
+        self.logger.store_transition(self.environment, reward)
         self.model.store_transition(observation,action,new_observation,reward,done)
 
         

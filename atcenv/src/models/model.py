@@ -28,6 +28,25 @@ class Model(ABC):
     def set_test(self, test: bool) -> None:
         pass
 
+    @abstractmethod
+    def setup_model(self, experiment_folder: str) -> None:
+        """ initializes the model for the current experiment
+        
+        should either load the correct weights and make a copy of them to the experiment folder
+        or create a directory in the experiment folder for saving the weights during training 
+        
+        Parameters
+        ___________
+        experiment_folder: str
+            location where the output weights will be saves
+
+        Returns
+        __________
+        None
+
+        """
+        pass
+
 class Straight(Model):
 
     def get_action(self, observation: np.ndarray) -> np.ndarray:
@@ -37,4 +56,7 @@ class Straight(Model):
         pass
     
     def set_test(self, test: bool) -> None:
+        pass   
+
+    def setup_model(self, experiment_folder: str) -> None:
         pass

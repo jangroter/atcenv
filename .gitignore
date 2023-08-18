@@ -153,6 +153,8 @@ output_data/*
 tmp/*
 rewards.csv
 states.csv
+
+/atcenv/output/*
 # PyCharm
 #  JetBrains specific template is maintainted in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

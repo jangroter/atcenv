@@ -33,7 +33,8 @@ class Observation(ABC):
     ___________
     get_observation(self, flights) -> observation 
         abstract method that given a list of flights returns 
-        the observation vector for all flights
+        the observation dictionary, containing an observation vector
+        and any other required information specific for the implementation
     normalize_observation(self, observation) -> observation
         abstract method that given an observation, normalizes it
     add_normalization_data(self, observation) -> None
@@ -65,7 +66,7 @@ class Observation(ABC):
         self.load_normalization_data()
 
     @abstractmethod
-    def get_observation(self, flights: List[Flight]) -> np.ndarray:
+    def get_observation(self, flights: List[Flight]) -> dict:
         """ return an observation vector for all flights in "flights"
 
         Parameters
@@ -75,8 +76,10 @@ class Observation(ABC):
         
         Returns
         __________
-        observation: numpy array
-            numpy array with in each row the observation vector for a flight
+        observation: dict
+            dictionary where observation["observation"] contains a numpy array with all the
+            observations, any other information you might wish to pass can be given under
+            personally defined keys
         """
         pass
     
@@ -220,13 +223,15 @@ class Local(Observation):
                          normalization_data_dir, normalization_samples)
         self.num_ac_state = num_ac_state
 
-    def get_observation(self, flights: List[Flight]) -> np.ndarray:
+    def get_observation(self, flights: List[Flight]) -> dict:
         observation = self.create_observation_vectors(flights)
 
         if self.normalize_data:
             observation = self.normalize_observation(observation)
         if self.create_normalization_data:
             self.add_normalization_data(observation)
+        
+        observation = {"observation": observation}
 
         return observation
         
@@ -472,3 +477,36 @@ class Global(Observation):
         raise Exception("Global(Observation) not yet properly implemented")
         return super().get_observation(flights)
 
+class StateBasedMVP(Observation):
+
+    def get_observation(self, flights: List[Flight]) -> dict:
+        drift = np.array([[f.drift] for f in flights])
+        v_dif = np.array([[f.optimal_airspeed - f.airspeed] for f in flights]) 
+
+        v = np.array([[f.airspeed] for f in flights])
+        tracks = np.array([[f.track] for f in flights])
+
+        x = np.array([[f.position.x] for f in flights])
+        y = np.array([[f.position.y] for f in flights])
+        vx, vy = self.get_vxvy(v, tracks)
+
+        observation = np.hstack((drift,
+                                 v_dif,
+                                 x,
+                                 y,
+                                 vx,
+                                 vy))
+        
+        observation = {"observation": observation, "flights": flights}
+        return observation
+    
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+        return observation
+
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+        pass
+
+    def get_vxvy(self, v: np.ndarray, tracks: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        vx = v * np.sin(tracks) 
+        vy = v * np.cos(tracks)
+        return vx, vy

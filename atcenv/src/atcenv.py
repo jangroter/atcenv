@@ -19,19 +19,20 @@ class AtcEnv():
                  observation: Observation,
                  reward: Reward,
                  logger: Logger) -> None:
-        self.environment = environment
-        self.model = model
-        self.scenario = scenario
-        self.airspace_template = airspace
-        self.aircraft = aircraft
-        self.observation = observation
-        self.reward = reward
-        self.logger = logger
+                 
+        self.environment = environment  # Currently OK
+        self.model = model  # Have to implement MVP and different DRL models
+        self.scenario = scenario  # Currently OK
+        self.airspace_template = airspace  # Currently OK, have to implement Merging
+        self.aircraft = aircraft  # Currently OK
+        self.observation = observation  # Have to implement Global for transformers, & MVP for MVP
+        self.reward = reward  # Have to implement basic reward function
+        self.logger = logger  # Currently OK
 
     def run_scenario(self) -> None:
         while self.scenario.episode_counter < self.scenario.num_episodes:
             airspace, flights, test = self.scenario.get_scenario(self.airspace_template,self.aircraft)
-            self.model.set_test(test)
+            self.model.new_episode(test)
             self.environment.create_environment(airspace, flights, episode = self.scenario.episode_counter)
             self.run_episode(test)
 

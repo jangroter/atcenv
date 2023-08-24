@@ -45,7 +45,7 @@ class AtcEnv():
             done = self.environment.step(action, self.model.transform_action)
             new_observation = self.observation.get_observation(self.environment.flights)
             reward = self.reward.get_reward(self.environment.flights)
-            self.store_transition(observation,action,new_observation,reward,done)
+            self.store_transition(observation["observation"],action,new_observation["observation"],reward,done)
         self.store_episode()
 
     def store_episode(self):

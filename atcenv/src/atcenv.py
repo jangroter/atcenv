@@ -25,7 +25,7 @@ class AtcEnv():
         self.scenario = scenario  # Currently OK
         self.airspace_template = airspace  # Currently OK, have to implement Merging
         self.aircraft = aircraft  # Currently OK
-        self.observation = observation  # Have to implement Global for transformers, & MVP for MVP
+        self.observation = observation  # Have to implement Global for transformers, 
         self.reward = reward  # Have to implement basic reward function
         self.logger = logger  # Currently OK
 
@@ -42,7 +42,7 @@ class AtcEnv():
         while not self.environment.done:
             observation = new_observation
             action = self.model.get_action(observation)
-            done = self.environment.step(action)
+            done = self.environment.step(action, self.model.transform_action)
             new_observation = self.observation.get_observation(self.environment.flights)
             reward = self.reward.get_reward(self.environment.flights)
             self.store_transition(observation,action,new_observation,reward,done)

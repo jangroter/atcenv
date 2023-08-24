@@ -101,7 +101,7 @@ class Environment(ABC):
         self.counter = 0
 
     @abstractmethod
-    def step(self, action: np.ndarray) -> bool:
+    def step(self, action: np.ndarray, transform_action: bool) -> bool:
         """ Progresses the environment to the next state
 
         Parameters
@@ -203,7 +203,6 @@ class Environment(ABC):
         self.viewer.render()
         time.sleep(0.01)
 
-
     def close(self) -> None:
         """ Closes the current render
 
@@ -258,7 +257,7 @@ class DefaultEnvironment(Environment):
 
     """
 
-    def step(self, action: np.ndarray) -> bool:
+    def step(self, action: np.ndarray, transform_action: bool) -> bool:
         """ Progresses the environment to the next state
 
         This implementation uses direct propagation of the state
@@ -268,6 +267,9 @@ class DefaultEnvironment(Environment):
         __________
         action: numpy array
             action array of size = (number of flights, number of actions)
+        transform: boolean
+            boolean variable on whether or not to map the input action to
+            the environment action space
         
         Returns
         __________
@@ -276,6 +278,8 @@ class DefaultEnvironment(Environment):
             
         """
         self.counter += 1
+
+        action = self.transform_action(action, transform_action)
 
         d_heading = np.clip(action[:,0], -self.max_heading_change, self.max_heading_change)
         d_velocity = np.clip(action[:,1], -self.max_speed_change, self.max_speed_change)
@@ -304,6 +308,15 @@ class DefaultEnvironment(Environment):
             self.close()
         
         return self.done
+    
+    def transform_action(self, action: np.ndarray, transform_action: bool) -> np.ndarray:
+
+        if transform_action:
+            action[:,0] *= self.max_heading_change
+            action[:,1] *= self.max_speed_change
+        return action
+
+
 
 
 

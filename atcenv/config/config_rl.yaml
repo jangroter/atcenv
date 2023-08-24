@@ -1,17 +1,39 @@
-experiment_name: "sub_model_test"
+experiment_name: "rl_test"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
-    render_frequency: 1
+    render_frequency: 0
 model:
-  class_path: atcenv.src.models.model.StraightSubModel
+  class_path: atcenv.src.models.sac.SAC
   init_args:
     action_dim: 2
-    sub_model:
-      class_path: atcenv.src.models.model.SubModel
+    buffer:
+      class_path: atcenv.src.models.replay_buffer.ReplayBuffer
       init_args:
-        neurons: 20
-        layers: 2
+        obs_dim: 10
+        action_dim: 2
+        size: 1000000
+    actor:
+      class_path: atcenv.src.models.actor.FeedForwardActor
+      init_args:
+        in_dim: 10
+        out_dim: 2
+    critic_q_1:
+      class_path: atcenv.src.models.critic_q.FeedForward_Q
+      init_args:
+        in_dim: 12
+    critic_q_2:
+      class_path: atcenv.src.models.critic_q.FeedForward_Q
+      init_args:
+        in_dim: 12
+    critic_v:
+      class_path: atcenv.src.models.critic_v.FeedForward_V
+      init_args:
+        in_dim: 10
+    critic_v_target:
+      class_path: atcenv.src.models.critic_v.FeedForward_V
+      init_args:
+        in_dim: 10
 scenario:
   num_episodes: 20000
   num_flights: 10

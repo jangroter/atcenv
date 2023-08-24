@@ -1,4 +1,4 @@
-experiment_name: "rl_test"
+experiment_name: "RL_test"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:

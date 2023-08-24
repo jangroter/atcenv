@@ -22,10 +22,9 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.Local
+  class_path: atcenv.src.observation.observation.StateBasedMVP
   init_args:
     observation_size: 10
-    num_ac_state: 1
     normalize_data: True
     create_normalization_data: False
     normalization_data_file: "local_normalization.p"

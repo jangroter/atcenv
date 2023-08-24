@@ -229,7 +229,7 @@ class BasicLogger(Logger):
             np.savetxt(self.results_folder+'/drift_angle.csv', self.drift_angle)
         
         if self.verbose:
-            print(f"Episode {self.episode} completed")
+            print(f"Episode {self.episode} completed, average of {np.mean(self.reward[-100:])} reward (ao100)")
 
 
 

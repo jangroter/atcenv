@@ -11,11 +11,20 @@ from dataclasses import dataclass, field
 import atcenv.src.functions as fn
 from atcenv.src.environment_objects.flight import Flight
 
+class SubModel():
+    
+    def __init__(self, neurons: int = 10, layers: int = 10):
+        self.neurons = neurons
+        self.layers = layers
+
+        print(f"I am a subclass with {self.neurons} neurons, and {self.layers} layers.")
+
 class Model(ABC):
 
-    def __init__(self):
-        pass
-
+    def __init__(self, action_dim: int):
+        self.action_dim = action_dim
+        self.transform_action = False
+        
     @abstractmethod
     def get_action(self, observation: dict) -> np.ndarray:
         pass
@@ -50,7 +59,28 @@ class Model(ABC):
 class Straight(Model):
 
     def get_action(self, observation: dict) -> np.ndarray:
-        return np.zeros((len(observation),2))
+        observation = observation["observation"]
+        return np.zeros((len(observation),self.action_dim))
+    
+    def store_transition(self, *args) -> None:
+        pass
+    
+    def new_episode(self, test: bool) -> None:
+        pass   
+
+    def setup_model(self, experiment_folder: str) -> None:
+        pass
+
+class Random(Model):
+
+    def __init__(self, action_dim: int):
+        super().__init__(action_dim)
+        self.transform_action = True
+
+    def get_action(self, observation: dict) -> np.ndarray:
+        observation = observation["observation"]
+        
+        return np.random.standard_normal((len(observation),self.action_dim)) * 0.33
     
     def store_transition(self, *args) -> None:
         pass
@@ -63,8 +93,8 @@ class Straight(Model):
 
 class MVP(Model):
 
-    def __init__(self, t_lookahead: float = 300., margin: float = 1.05 ):
-        super().__init__()
+    def __init__(self, action_dim: int, t_lookahead: float = 300., margin: float = 1.05 ):
+        super().__init__(action_dim)
         self.t_lookahead = t_lookahead
         self.margin = margin
         self.past_conflicts = []
@@ -196,6 +226,26 @@ class MVP(Model):
 
         return dx, dy, dvx, dvy, dist, dv2
 
+class StraightSubModel(Model):
+
+    def __init__(self, action_dim: int, sub_model: SubModel):
+        self.action_dim = action_dim
+        self.transform_action = False
+        self.sub_model = sub_model
+        
+
+    def get_action(self, observation: dict) -> np.ndarray:
+        observation = observation["observation"]
+        return np.zeros((len(observation),self.action_dim))
+    
+    def store_transition(self, *args) -> None:
+        pass
+    
+    def new_episode(self, test: bool) -> None:
+        pass   
+
+    def setup_model(self, experiment_folder: str) -> None:
+        pass
 
 
 

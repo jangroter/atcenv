@@ -105,10 +105,10 @@ class Flight:
     @property
     def components(self) -> Tuple[float, float]:
         """ X and Y speed components (in m/s, eastbound & northbound positive) """
-        dx = self.airspeed * math.sin(self.track)
-        dy = self.airspeed * math.cos(self.track)
+        vx = self.airspeed * math.sin(self.track)
+        vy = self.airspeed * math.cos(self.track)
 
-        return dx, dy
+        return vx, vy
     
     @property
     def distance(self) -> float:

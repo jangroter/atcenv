@@ -1,7 +1,8 @@
 import math
 import random
 import os
-from typing import Optional
+import shutil
+from typing import Optional, Tuple
 from shapely.geometry import Polygon, Point
 import numpy as np
 
@@ -83,3 +84,53 @@ def remove_diagonal(matrix: np.ndarray) -> np.ndarray:
         returns a new matrix with all diagonal elements removed
     """
     return matrix[~np.eye(matrix.shape[0],dtype=bool)].reshape(matrix.shape[0],-1)
+def setup_experiment(experiment_name: str, config_file: str):
+    output_folder = "atcenv/output/" + experiment_name
+    exist = check_dir_exist(output_folder, mkdir = True)
+    if exist:
+        raise Exception("Experiment with this name already exists, please use a different name, or delete the previous experiment")
+    else:
+        new_config = output_folder + '/config.yaml'
+        shutil.copyfile(config_file, new_config)
+def get_distance_matrices(x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """ Returns 3 square matrices, dx, dy and distances, where dx and dy are the 
+        relative x and y positions in the earth references frame. distances is the 
+        relative distance between all the aircraft.
+
+        Indexing [i,j] gives speed of j relative to i.
+
+        Parameters
+        __________
+        x: numpy array
+            1D numpy array with all of the x positions in earth reference frame
+        
+        y: numpy array
+            1D numpy array with all of the y positions in earth reference frame
+        
+        Returns
+        __________
+        dx: numpy array
+            2D numpy array with all the relative x positions in the earth reference frame
+
+        dy: numpy array
+            2D numpy array with all the relative y positions in the earth reference frame
+        
+        distances: numpy array
+            2D numpy array with all the relative distances between the aircraft
+        """
+        
+        x_i = x[:, np.newaxis]
+        x_j = x[np.newaxis, :]
+
+        y_i = y[:, np.newaxis]
+        y_j = y[np.newaxis, :]
+
+        dx = x_j - x_i
+        dy = y_j - y_i
+
+        distances = np.sqrt((x_i-x_j)**2+(y_i-y_j)**2)
+
+        return dx, dy, distances        
+
+
+

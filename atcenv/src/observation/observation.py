@@ -52,17 +52,20 @@ class Observation(ABC):
                  observation_size: int,
                  normalize_data: bool,
                  create_normalization_data: Optional[bool] = False,
-                 normalization_data_dir: Optional[str] = None,
-                 normalization_samples: Optional[int] = 250000):
+                 normalization_data_file: Optional[str] = None,
+                 normalization_samples: Optional[int] = 20000):
         self.observation_size = observation_size
         self.normalize_data = normalize_data
         self.create_normalization_data = create_normalization_data
-        self.normalization_data_dir = normalization_data_dir
+        self.normalization_data_file = normalization_data_file
         self.normalization_samples = normalization_samples
 
         self.means = np.zeros(self.observation_size)
         self.stds = np.ones(self.observation_size)
-
+        
+        self.normalization_counter = 0
+        
+        self.normalization_data = None
         self.load_normalization_data()
 
     @abstractmethod
@@ -133,8 +136,8 @@ class Observation(ABC):
         if not self.normalize_data and not self.create_normalization_data:
             return
         
-        if self.normalization_data_dir is None:
-            raise('Cannot normalize data or create normalization dataset if no path is provided')
+        if self.normalization_data_file is None:
+            raise Exception('Cannot normalize data or create normalization dataset if no path is provided')
         
         if self.normalize_data:
             if self.create_normalization_data:
@@ -142,17 +145,15 @@ class Observation(ABC):
                 print('Setting create_normalization_data to False')
                 self.create_normalization_data = False
 
-            exist = fn.check_dir_exist(self.normalization_data_dir, False)
+            exist = fn.check_dir_exist(f'atcenv/src/observation/normalization_data/{self.normalization_data_file}', False)
             if not exist:
-                raise('No normalization data found, please run a create normalization data scenario first')
+                raise Exception('No normalization data found, please run a create normalization data scenario first')
             else:
-                with open(f'{self.normalization_data_dir}/normalization_data.p', 'rb') as handle:
+                with open(f'atcenv/src/observation/normalization_data/{self.normalization_data_file}', 'rb') as handle:
                     self.means, self.stds = pickle.load(handle)
 
-        elif self.create_normalization_data:
-            exist = fn.check_dir_exist(self.normalization_data_dir, True)
-            if not exist:
-                print('Provided path to folder did not yet exist, creating path')
+                    print('means: ', self.means)
+                    print('stds: ', self.stds)
 
     def save_normalization_data(self) -> None:
         """ construct the means and standard deviations generated 
@@ -167,7 +168,12 @@ class Observation(ABC):
         None
 
         """
-        pass
+        
+        means = np.mean(self.normalization_data, axis=1)
+        stds = np.std(self.normalization_data, axis=1)
+
+        with open(f'atcenv/src/observation/normalization_data/{self.normalization_data_file}', 'wb') as handle:
+            pickle.dump((means,stds), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 class Local(Observation):
     """ Local observation class, inherits from Observation
@@ -217,11 +223,14 @@ class Local(Observation):
                  normalize_data: bool,
                  num_ac_state: Optional[int] = 2,
                  create_normalization_data: Optional[bool] = False,
-                 normalization_data_dir: Optional[str] = None,
-                 normalization_samples: Optional[int] = 250000):
+                 normalization_data_file: Optional[str] = None,
+                 normalization_samples: Optional[int] = 20000):
         super().__init__(observation_size, normalize_data, create_normalization_data, 
-                         normalization_data_dir, normalization_samples)
+                         normalization_data_file, normalization_samples)
         self.num_ac_state = num_ac_state
+        
+        # Local uses 10 unique state parameters that require normalization
+        self.normalization_data = np.zeros((10,normalization_samples))
 
     def get_observation(self, flights: List[Flight]) -> dict:
         observation = self.create_observation_vectors(flights)
@@ -236,11 +245,42 @@ class Local(Observation):
         return observation
         
     def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
-        pass
 
-    def add_normalization_data(self):
-        pass
+        observation[:,0] -= self.means[0]  # Airspeed
+        observation[:,3+self.num_ac_state*6:3+self.num_ac_state*7] -= self.means[9]  # relative distance
 
+        observation[:,0] /= self.stds[0]  # Airspeed
+        observation[:,3+self.num_ac_state*0:3+self.num_ac_state*1] /= self.stds[3]  # relative x position
+        observation[:,3+self.num_ac_state*1:3+self.num_ac_state*2] /= self.stds[4]  # relative y position
+        observation[:,3+self.num_ac_state*2:3+self.num_ac_state*3] /= self.stds[5]  # relative x velocity
+        observation[:,3+self.num_ac_state*3:3+self.num_ac_state*4] /= self.stds[6]  # relative y velocity
+        observation[:,3+self.num_ac_state*6:3+self.num_ac_state*7] /= self.stds[9]  # relative distance
+
+        return observation
+
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+
+        new_data = np.zeros((10,1))
+
+        new_data[0] = np.mean(observation[:,0])  # Airspeed
+        new_data[1] = np.mean(observation[:,1])  # sin(drift)
+        new_data[2] = np.mean(observation[:,2])  # cos(drift)
+        new_data[3] = np.mean(observation[:,3+self.num_ac_state*0:3+self.num_ac_state*1])  # relative x position
+        new_data[4] = np.mean(observation[:,3+self.num_ac_state*1:3+self.num_ac_state*2])  # relative y position
+        new_data[5] = np.mean(observation[:,3+self.num_ac_state*2:3+self.num_ac_state*3])  # relative x velocity
+        new_data[6] = np.mean(observation[:,3+self.num_ac_state*3:3+self.num_ac_state*4])  # relative y velocity
+        new_data[7] = np.mean(observation[:,3+self.num_ac_state*4:3+self.num_ac_state*5])  # relative sin(track)
+        new_data[8] = np.mean(observation[:,3+self.num_ac_state*5:3+self.num_ac_state*6])  # relative cos(track)
+        new_data[9] = np.mean(observation[:,3+self.num_ac_state*6:3+self.num_ac_state*7])  # relative distance
+
+        self.normalization_data[:,self.normalization_counter] = new_data[:,0]
+        self.normalization_counter += 1
+        
+        if self.normalization_counter >= self.normalization_samples:
+            self.save_normalization_data()
+            print("finished generating normalization data, setting self.create_normalization_data to False")
+            self.create_normalization_data = False
+        
     def create_observation_vectors(self, flights: List[Flight]) -> np.ndarray:
         """ Uses a list of all flight objects to construct the observation vector
         for all flights from a local perspective. 
@@ -345,7 +385,7 @@ class Local(Observation):
 
         x = np.array([f.position.x for f in flights])
         y = np.array([f.position.y for f in flights])
-        dx, dy, distances = self.get_distance_matrices(x, y)
+        dx, dy, distances = fn.get_distance_matrices(x, y)
 
         tracks = np.array([f.track for f in flights])
         dx_rel, dy_rel = self.get_relative_xy(dx, dy, tracks, distances)
@@ -363,46 +403,6 @@ class Local(Observation):
         d_track = fn.remove_diagonal(d_track)
 
         return dx_rel, dy_rel, distances, vx, vy, d_track
-
-    def get_distance_matrices(self, x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """ Returns 3 square matrices, dx, dy and distances, where dx and dy are the 
-        relative x and y positions in the earth references frame. distances is the 
-        relative distance between all the aircraft.
-
-        Indexing [i,j] gives speed of j relative to i.
-
-        Parameters
-        __________
-        x: numpy array
-            1D numpy array with all of the x positions in earth reference frame
-        
-        y: numpy array
-            1D numpy array with all of the y positions in earth reference frame
-        
-        Returns
-        __________
-        dx: numpy array
-            2D numpy array with all the relative x positions in the earth reference frame
-
-        dy: numpy array
-            2D numpy array with all the relative y positions in the earth reference frame
-        
-        distances: numpy array
-            2D numpy array with all the relative distances between the aircraft
-        """
-        
-        x_i = x[:, np.newaxis]
-        x_j = x[np.newaxis, :]
-
-        y_i = y[:, np.newaxis]
-        y_j = y[np.newaxis, :]
-
-        dx = x_j - x_i
-        dy = y_j - y_i
-
-        distances = np.sqrt((x_i-x_j)**2+(y_i-y_j)**2)
-
-        return dx, dy, distances
     
     def get_relative_xy(self, dx: np.ndarray, dy: np.ndarray, tracks: np.ndarray, distances: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """ Returns 2 square matrices, dx_rel and dy_rel, with for each row the distances 

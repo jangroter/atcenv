@@ -175,6 +175,277 @@ class Observation(ABC):
         with open(f'atcenv/src/observation/normalization_data/{self.normalization_data_file}', 'wb') as handle:
             pickle.dump((means,stds), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+class BasicRel(Observation):
+    
+    def __init__(self,
+                 observation_size: int,
+                 normalize_data: bool,
+                 num_ac_state: Optional[int] = 3,
+                 create_normalization_data: Optional[bool] = False,
+                 normalization_data_file: Optional[str] = None,
+                 normalization_samples: Optional[int] = 20000):
+        super().__init__(observation_size, normalize_data, create_normalization_data, 
+                         normalization_data_file, normalization_samples)
+        self.num_ac_state = num_ac_state
+        
+        # Basic uses 10 unique state parameters that require normalization
+        self.normalization_data = np.zeros((10,normalization_samples))
+    
+    def get_observation(self, flights: List[Flight]) -> dict:
+        observation = self.create_observation_vectors(flights)
+
+        if self.normalize_data:
+            observation = self.normalize_observation(observation)
+        if self.create_normalization_data:
+            self.add_normalization_data(observation)
+        
+        observation = {"observation": observation}
+
+        return observation
+
+    def create_observation_vectors(self, flights: List[Flight]) -> np.ndarray:
+        """ Uses a list of all flight objects to construct the observation vector
+        for all flights from a local perspective. 
+
+        Different from Local, all elements in Basic are in the Earth reference
+        frame instead of the flight reference frame.
+        
+        Priority for the creation of the
+        state vector is based on the distance between the aircraft, with lowest
+        distance having the highest priority.
+
+        If not enough flights are present to create a full observation vector
+        the missing values will be padded with zeroes.
+
+        Observation vector for each aircraft (each row) is:
+            [cos(drift),
+            sin(drift),
+            x,
+            y,
+            vx,
+            vy,
+            relative x * number of aircraft in the state,
+            relative y * number of aircraft in the state,
+            relative vx * number of aircraft in the state,
+            relative vy * number of aircraft in the state]
+
+        Parameters
+        __________
+        flights: List[Flight]
+            list of all the flight objects currently present in the airspace
+        
+        Returns
+        __________
+        observation: numpy array
+            2D matrix, containing in each row the observation vector for a given flight
+        """
+        
+        drift = np.array([[np.sin(f.drift), np.cos(f.drift)] for f in flights])
+        x = np.array([f.position.x for f in flights])
+        y = np.array([f.position.y for f in flights])
+        vx = np.array([f.components[0] for f in flights])
+        vy = np.array([f.components[1] for f in flights])
+
+        dx, dy, distances = fn.get_distance_matrices(x, y)
+        dvx = vx[np.newaxis, :] - vx[:, np.newaxis]
+        dvy = vy[np.newaxis, :] - vy[:, np.newaxis]
+
+        distances = fn.remove_diagonal(distances)
+        dx = fn.remove_diagonal(dx)
+        dy = fn.remove_diagonal(dy)
+        dvx = fn.remove_diagonal(dvx)
+        dvy = fn.remove_diagonal(dvy)
+
+        min_dist_index = np.argsort(distances)
+        dx = np.hstack((np.take_along_axis(dx, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        dy = np.hstack((np.take_along_axis(dy, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        dvx = np.hstack((np.take_along_axis(dvx, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        dvy = np.hstack((np.take_along_axis(dvy, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+
+        x = x[:,np.newaxis]
+        y = y[:,np.newaxis]
+        vx = vx[:,np.newaxis]
+        vy = vy[:,np.newaxis]
+
+        observation = np.hstack((drift,
+                                 x,
+                                 y,
+                                 vx,
+                                 vy,
+                                 dx[:,0:self.num_ac_state],
+                                 dy[:,0:self.num_ac_state],
+                                 dvx[:,0:self.num_ac_state],
+                                 dvy[:,0:self.num_ac_state]))
+
+        if len(observation[0]) != self.observation_size:
+            raise Exception(f"Observation vector contains {len(observation[0])} elements, but {self.observation_size} elements where specified in init")
+
+        return observation
+    
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+
+        observation[:,2] /= self.stds[2]  # x
+        observation[:,3] /= self.stds[3]  # y
+        observation[:,4] /= self.stds[4]  # vx
+        observation[:,5] /= self.stds[5]  # vy
+        observation[:,6+self.num_ac_state*0:6+self.num_ac_state*1] /= self.stds[6]  # relative x position
+        observation[:,6+self.num_ac_state*1:6+self.num_ac_state*2] /= self.stds[7]  # relative y position
+        observation[:,6+self.num_ac_state*2:6+self.num_ac_state*3] /= self.stds[8]  # relative x velocity
+        observation[:,6+self.num_ac_state*3:6+self.num_ac_state*4] /= self.stds[9]  # relative y velocity
+
+
+        return observation
+    
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+
+        new_data = np.zeros((10,1))
+
+        new_data[0] = np.mean(observation[:,0])  # sin(drift)
+        new_data[1] = np.mean(observation[:,1])  # cos(drift)
+        new_data[2] = np.mean(observation[:,2])  # x
+        new_data[3] = np.mean(observation[:,3])  # y
+        new_data[4] = np.mean(observation[:,4])  # vx
+        new_data[5] = np.mean(observation[:,5])  # vy
+        new_data[6] = np.mean(observation[:,6+self.num_ac_state*0:6+self.num_ac_state*1])  # relative x position
+        new_data[7] = np.mean(observation[:,6+self.num_ac_state*1:6+self.num_ac_state*2])  # relative y position
+        new_data[8] = np.mean(observation[:,6+self.num_ac_state*2:6+self.num_ac_state*3])  # relative x velocity
+        new_data[9] = np.mean(observation[:,6+self.num_ac_state*3:6+self.num_ac_state*4])  # relative y velocity
+
+
+        self.normalization_data[:,self.normalization_counter] = new_data[:,0]
+        self.normalization_counter += 1
+        
+        if self.normalization_counter >= self.normalization_samples:
+            self.save_normalization_data()
+            print("finished generating normalization data, setting self.create_normalization_data to False")
+            self.create_normalization_data = False
+
+class BasicAbs(Observation):
+    
+    def __init__(self,
+                 observation_size: int,
+                 normalize_data: bool,
+                 num_ac_state: Optional[int] = 3,
+                 create_normalization_data: Optional[bool] = False,
+                 normalization_data_file: Optional[str] = None,
+                 normalization_samples: Optional[int] = 20000):
+        super().__init__(observation_size, normalize_data, create_normalization_data, 
+                         normalization_data_file, normalization_samples)
+        self.num_ac_state = num_ac_state
+        
+        # Basic uses 10 unique state parameters that require normalization
+        self.normalization_data = np.zeros((6,normalization_samples))
+    
+    def get_observation(self, flights: List[Flight]) -> dict:
+        observation = self.create_observation_vectors(flights)
+
+        if self.normalize_data:
+            observation = self.normalize_observation(observation)
+        if self.create_normalization_data:
+            self.add_normalization_data(observation)
+        
+        observation = {"observation": observation}
+
+        return observation
+
+    def create_observation_vectors(self, flights: List[Flight]) -> np.ndarray:
+        """ Uses a list of all flight objects to construct the observation vector
+        for all flights from a local perspective. 
+
+        Different from Local, all elements in Basic are in the Earth reference
+        frame instead of the flight reference frame.
+        
+        Priority for the creation of the
+        state vector is based on the distance between the aircraft, with lowest
+        distance having the highest priority.
+
+        If not enough flights are present to create a full observation vector
+        the missing values will be padded with zeroes.
+
+        Observation vector for each aircraft (each row) is:
+            [cos(drift),
+            sin(drift),
+            x,
+            y,
+            vx,
+            vy,
+            x_int * number of aircraft in the state,
+            y_int * number of aircraft in the state,
+            vx_int * number of aircraft in the state,
+            vy_int * number of aircraft in the state]
+
+        Parameters
+        __________
+        flights: List[Flight]
+            list of all the flight objects currently present in the airspace
+        
+        Returns
+        __________
+        observation: numpy array
+            2D matrix, containing in each row the observation vector for a given flight
+        """
+        
+        drift = np.array([[np.sin(f.drift), np.cos(f.drift)] for f in flights])
+        x = np.array([f.position.x for f in flights])
+        y = np.array([f.position.y for f in flights])
+        vx = np.array([f.components[0] for f in flights])
+        vy = np.array([f.components[1] for f in flights])
+
+        dx, dy, distances = fn.get_distance_matrices(x, y)
+        dvx = vx[np.newaxis, :] - vx[:, np.newaxis]
+        dvy = vy[np.newaxis, :] - vy[:, np.newaxis]
+
+        x = np.array([x for f in flights])
+        y = np.array([y for f in flights])
+        vx = np.array([vx for f in flights])
+        vy = np.array([vy for f in flights])
+
+        min_dist_index = np.argsort(distances)
+        x = np.hstack((np.take_along_axis(x, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        y = np.hstack((np.take_along_axis(y, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        vx = np.hstack((np.take_along_axis(vx, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+        vy = np.hstack((np.take_along_axis(vy, min_dist_index, axis=1),np.zeros((len(flights),self.num_ac_state))))
+
+        observation = np.hstack((drift,
+                                 x[:,0:self.num_ac_state+1],
+                                 y[:,0:self.num_ac_state+1],
+                                 vx[:,0:self.num_ac_state+1],
+                                 vy[:,0:self.num_ac_state+1]))
+
+        if len(observation[0]) != self.observation_size:
+            raise Exception(f"Observation vector contains {len(observation[0])} elements, but {self.observation_size} elements where specified in init")
+
+        return observation
+    
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+
+        observation[:,2+(self.num_ac_state + 1)*0:6+(self.num_ac_state + 1)*1] /= self.stds[2]  # x position
+        observation[:,2+(self.num_ac_state + 1)*1:6+(self.num_ac_state + 1)*2] /= self.stds[3]  # y position
+        observation[:,2+(self.num_ac_state + 1)*2:6+(self.num_ac_state + 1)*3] /= self.stds[4]  # x velocity
+        observation[:,2+(self.num_ac_state + 1)*3:6+(self.num_ac_state + 1)*4] /= self.stds[5]  # y velocity
+
+        return observation
+    
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+
+        new_data = np.zeros((6,1))
+
+        new_data[0] = np.mean(observation[:,0])  # sin(drift)
+        new_data[1] = np.mean(observation[:,1])  # cos(drift)
+        new_data[2] = np.mean(observation[:,2+(self.num_ac_state + 1)*0:2+(self.num_ac_state + 1)*1])  # x position
+        new_data[3] = np.mean(observation[:,2+(self.num_ac_state + 1)*1:2+(self.num_ac_state + 1)*2])  # y position
+        new_data[4] = np.mean(observation[:,2+(self.num_ac_state + 1)*2:2+(self.num_ac_state + 1)*3])  # x velocity
+        new_data[5] = np.mean(observation[:,2+(self.num_ac_state + 1)*3:2+(self.num_ac_state + 1)*4])  # y velocity
+
+
+        self.normalization_data[:,self.normalization_counter] = new_data[:,0]
+        self.normalization_counter += 1
+        
+        if self.normalization_counter >= self.normalization_samples:
+            self.save_normalization_data()
+            print("finished generating normalization data, setting self.create_normalization_data to False")
+            self.create_normalization_data = False
+
 class Local(Observation):
     """ Local observation class, inherits from Observation
 
@@ -473,9 +744,75 @@ class Local(Observation):
 
 class Global(Observation):
 
-    def get_observation(self, flights: List[Flight]) -> List[np.ndarray]:
-        raise Exception("Global(Observation) not yet properly implemented")
-        return super().get_observation(flights)
+    def __init__(self,
+                 observation_size: int,
+                 normalize_data: bool,
+                 create_normalization_data: Optional[bool] = False,
+                 normalization_data_file: Optional[str] = None,
+                 normalization_samples: Optional[int] = 20000):
+        super().__init__(observation_size, normalize_data, create_normalization_data, 
+                         normalization_data_file, normalization_samples)
+        
+        # Global uses 7 unique state parameters that require normalization
+        self.normalization_data = np.zeros((7,normalization_samples))
+
+    def get_observation(self, flights: List[Flight]) -> dict:
+        
+        x = np.array([[f.position.x] for f in flights])
+        y = np.array([[f.position.y] for f in flights])
+        vxy = np.array([f.components for f in flights])
+        v = np.array([[f.airspeed] for f in flights])
+        drift = np.array([[np.sin(f.drift), np.cos(f.drift)] for f in flights])
+
+        observation = np.hstack((x,
+                                 y,
+                                 vxy,
+                                 v,
+                                 drift))
+        
+        if self.normalize_data:
+            observation = self.normalize_observation(observation)
+        if self.create_normalization_data:
+            self.add_normalization_data(observation)
+
+        observation = {"observation": observation}
+
+        return observation
+        
+    def normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+        observation[:,0] -= self.means[0]  # x
+        observation[:,1] -= self.means[1]  # y
+        observation[:,2] -= self.means[2]  # vx
+        observation[:,3] -= self.means[3]  # vy
+        observation[:,4] -= self.means[4]  # v
+
+        observation[:,0] /= self.stds[0]  # x
+        observation[:,1] /= self.stds[1]  # y
+        observation[:,2] /= self.stds[2]  # vx
+        observation[:,3] /= self.stds[3]  # vy
+        observation[:,4] /= self.stds[4]  # v
+        
+        return observation
+
+    def add_normalization_data(self, observation: np.ndarray) -> None:
+        new_data = np.zeros((7,1))
+
+        new_data[0] = np.mean(observation[:,0])  # x
+        new_data[1] = np.mean(observation[:,1])  # y
+        new_data[2] = np.mean(observation[:,2])  # vx
+        new_data[3] = np.mean(observation[:,3])  # vy
+        new_data[4] = np.mean(observation[:,4])  # v
+        new_data[5] = np.mean(observation[:,5])  # sin(drift)
+        new_data[6] = np.mean(observation[:,6])  # cos(drift)
+
+        self.normalization_data[:,self.normalization_counter] = new_data[:,0]
+        self.normalization_counter += 1
+        
+        if self.normalization_counter >= self.normalization_samples:
+            self.save_normalization_data()
+            print("finished generating normalization data, setting self.create_normalization_data to False")
+            self.create_normalization_data = False
+        pass
 
 class StateBasedMVP(Observation):
 

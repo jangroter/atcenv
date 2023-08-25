@@ -17,6 +17,10 @@ from atcenv.src.models.critic_q import Critic_Q
 from atcenv.src.models.critic_v import Critic_V
 from atcenv.src.models.replay_buffer import ReplayBuffer
 
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
+
 class SAC(Model):
 
     def __init__(self,
@@ -33,7 +37,7 @@ class SAC(Model):
                  critic_v_lr: float = 3e-3,
                  gamma: float = 0.995,
                  tau: float = 5e-3,
-                 policy_update_freq: int = 1,
+                 policy_update_freq: int = 10,
                  initial_random_steps: int = 0):
 
         self.transform_action = True
@@ -47,6 +51,9 @@ class SAC(Model):
         self.target_alpha = -np.prod((self.action_dim)).item()
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha_optimizer = optim.Adam([self.log_alpha], lr=alpha_lr)
+
+        self.qf1_lossarr = np.array([])
+        self.qf2_lossarr = np.array([])
 
         self.actor = actor.to(device=self.device)
 
@@ -75,8 +82,8 @@ class SAC(Model):
         if self.total_steps < self.initial_random_steps and not self.test:
             action = np.random.standard_normal((len(observation),self.action_dim)) * 0.33
         else:
-            action = self.actor(torch.FloatTensor(np.array(observation)).to(self.device))[0].detach().cpu().numpy()
-            action = np.array(action)
+            action = self.actor(torch.FloatTensor(np.array([observation])).to(self.device))[0].detach().cpu().numpy()
+            action = np.array(action[0])
             action = np.clip(action, -1, 1)
         
         self.total_steps += 1
@@ -95,9 +102,11 @@ class SAC(Model):
 
     def new_episode(self, test: bool) -> None:
         self.test = test
+        if self.total_steps > 1000:
+            self.plot_figures()
 
     def setup_model(self, experiment_folder: str) -> None:
-        pass
+        super().setup_model(experiment_folder)
 
     def update_model(self):
         device = self.device
@@ -126,6 +135,9 @@ class SAC(Model):
         q_target = reward + self.gamma * vf_target #* mask
         qf1_loss = F.mse_loss(q_target.detach(), q1_pred)
         qf2_loss = F.mse_loss(q_target.detach(), q2_pred)
+
+        self.qf1_lossarr = np.append(self.qf1_lossarr,qf1_loss.detach().cpu().numpy())
+        self.qf2_lossarr = np.append(self.qf2_lossarr,qf2_loss.detach().cpu().numpy())
 
         v_pred = self.critic_v(state)
         q_pred = torch.min(
@@ -164,3 +176,12 @@ class SAC(Model):
             self.critic_v_target.parameters(), self.critic_v.parameters()
         ):
             t_param.data.copy_(self.tau * l_param.data + (1.0 - self.tau) * t_param.data)
+    
+    def plot_figures(self):
+        fig, ax = plt.subplots()
+        ax.plot(self.qf1_lossarr, label='qf1')
+        ax.plot(self.qf2_lossarr, label='qf2')
+        ax.plot(fn.moving_average(self.qf2_lossarr,500))
+        ax.set_yscale('log')
+        fig.savefig('qloss.png')
+        plt.close(fig)

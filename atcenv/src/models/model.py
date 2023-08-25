@@ -54,6 +54,7 @@ class Model(ABC):
         None
 
         """
+        self.experiment_folder = experiment_folder
         pass
 
 class Straight(Model):
@@ -69,7 +70,7 @@ class Straight(Model):
         pass   
 
     def setup_model(self, experiment_folder: str) -> None:
-        pass
+        super().setup_model(experiment_folder)
 
 class Random(Model):
 
@@ -89,7 +90,7 @@ class Random(Model):
         pass   
 
     def setup_model(self, experiment_folder: str) -> None:
-        pass
+        super().setup_model(experiment_folder)
 
 class MVP(Model):
 
@@ -199,7 +200,7 @@ class MVP(Model):
         self.past_conflicts = []
 
     def setup_model(self, experiment_folder: str) -> None:
-        pass
+        super().setup_model(experiment_folder)
 
     def check_past_conflicts(self, num_flights: int) -> None:
         if len(self.past_conflicts) == num_flights:
@@ -245,7 +246,7 @@ class StraightSubModel(Model):
         pass   
 
     def setup_model(self, experiment_folder: str) -> None:
-        pass
+        super().setup_model(experiment_folder)
 
 
 

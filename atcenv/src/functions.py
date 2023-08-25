@@ -131,6 +131,7 @@ def get_distance_matrices(x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.
         distances = np.sqrt((x_i-x_j)**2+(y_i-y_j)**2)
 
         return dx, dy, distances        
-
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
 
 

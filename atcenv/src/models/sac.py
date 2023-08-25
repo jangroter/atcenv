@@ -35,7 +35,6 @@ class SAC(Model):
                  tau: float = 5e-3,
                  policy_update_freq: int = 1,
                  initial_random_steps: int = 0):
-        torch.autograd.set_detect_anomaly(True)
 
         self.transform_action = True
         self.test = False
@@ -85,10 +84,9 @@ class SAC(Model):
     
     def store_transition(self,observation,action,new_observation,reward,done) -> None:
         if not self.test:
-            for i in range(len(observation)):  
-                done = False
-                transition = [observation[i], action[i], reward[i], new_observation[i], done]
-                self.buffer.store(*transition)
+            done = False
+            transition = [observation, action, reward, new_observation, done]
+            self.buffer.store(*transition)
         if (self.total_steps % self.policy_update_freq == 0 and 
             len(self.buffer) >  self.buffer.batch_size and 
             self.total_steps > self.initial_random_steps and 
@@ -108,8 +106,10 @@ class SAC(Model):
         state = torch.FloatTensor(samples["obs"]).to(device)
         next_state = torch.FloatTensor(samples["next_obs"]).to(device)
         action = torch.FloatTensor(samples["acts"]).to(device)
-        reward = torch.FloatTensor(samples["rews"].reshape(-1,1)).to(device)
+        reward = torch.FloatTensor(samples["rews"]).to(device)
         done = torch.FloatTensor(samples["done"].reshape(-1, 1)).to(device)
+        b,n = reward.size()
+        reward = reward.view(b,n,1)
         new_action, log_prob = self.actor(state)
         alpha_loss = ( -self.log_alpha.exp() * (log_prob + self.target_alpha).detach()).mean()
 
@@ -119,11 +119,11 @@ class SAC(Model):
 
         alpha = self.log_alpha.exp()
 
-        mask = 1 - done
+        #mask = 1 - done
         q1_pred = self.critic_q_1(state, action)
         q2_pred = self.critic_q_2(state, action)
         vf_target = self.critic_v_target(next_state)
-        q_target = reward + self.gamma * vf_target * mask
+        q_target = reward + self.gamma * vf_target #* mask
         qf1_loss = F.mse_loss(q_target.detach(), q1_pred)
         qf2_loss = F.mse_loss(q_target.detach(), q2_pred)
 

@@ -1,4 +1,4 @@
-experiment_name: "FeedForward_ownref_straight"
+experiment_name: "Transformer_ownref_straight_lrx10"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -7,10 +7,10 @@ model:
   class_path: atcenv.src.models.sac.SAC
   init_args:
     action_dim: 2
-    alpha_lr: 3e-4
-    actor_lr: 3e-5
-    critic_q_lr: 3e-3
-    critic_v_lr: 3e-3
+    alpha_lr: 3e-3
+    actor_lr: 3e-4
+    critic_q_lr: 3e-2
+    critic_v_lr: 3e-2
     gamma: 1.0
     tau: 5e-3
     policy_update_freq: 8
@@ -18,34 +18,34 @@ model:
     buffer:
       class_path: atcenv.src.models.replay_buffer.ReplayBuffer
       init_args:
-        obs_dim: 18
+        obs_dim: 8
         action_dim: 2
         n_agents: 10
         size: 20000000
         batch_size: 2048
     actor:
-      class_path: atcenv.src.models.actor.FeedForwardActor
+      class_path: atcenv.src.models.actor.OwnRefTransformerActor
       init_args:
-        in_dim: 18
+        in_dim: 8
         out_dim: 2
     critic_q_1:
-      class_path: atcenv.src.models.critic_q.FeedForward_Q
+      class_path: atcenv.src.models.critic_q.OwnRefTransformerQ
       init_args:
-        state_dim: 18
+        state_dim: 8
         action_dim: 2
     critic_q_2:
-      class_path: atcenv.src.models.critic_q.FeedForward_Q
+      class_path: atcenv.src.models.critic_q.OwnRefTransformerQ
       init_args:
-        state_dim: 18
+        state_dim: 8
         action_dim: 2
     critic_v:
-      class_path: atcenv.src.models.critic_v.FeedForward_V
+      class_path: atcenv.src.models.critic_v.OwnRefTransformerV
       init_args:
-        in_dim: 18
+        in_dim: 8
     critic_v_target:
-      class_path: atcenv.src.models.critic_v.FeedForward_V
+      class_path: atcenv.src.models.critic_v.OwnRefTransformerV
       init_args:
-        in_dim: 18
+        in_dim: 8
 scenario:
   num_episodes: 20000
   num_flights: 10
@@ -61,14 +61,13 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.LocalNoTrack
+  class_path: atcenv.src.observation.observation.GlobalTrack
   init_args:
-    observation_size: 18
-    num_ac_state: 3
+    observation_size: 8
     normalize_data: True
     create_normalization_data: False
-    normalization_data_file: "local_normalization.p"
-    normalization_samples: 500000
+    normalization_data_file: "global_normalization.p"
+    normalization_samples: 50000
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
   init_args:

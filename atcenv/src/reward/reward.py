@@ -55,10 +55,6 @@ class DefaultReward(Reward):
 
         # count for each aircraft the number of distances < separation minima
         intrusions = (distances < min_distance[:, np.newaxis]).sum(axis = 1)
-
-        if sum(intrusions) > 0:
-            print(intrusions)
-            input("press any key to continue")
                            
         return intrusions * self.intrusion_weight
     

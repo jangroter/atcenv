@@ -17,9 +17,7 @@ from atcenv.src.models.critic_q import Critic_Q
 from atcenv.src.models.critic_v import Critic_V
 from atcenv.src.models.replay_buffer import ReplayBuffer
 
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('agg')
+import time
 
 class SAC(Model):
 
@@ -102,8 +100,6 @@ class SAC(Model):
 
     def new_episode(self, test: bool) -> None:
         self.test = test
-        if self.total_steps > 1000:
-            self.plot_figures()
 
     def setup_model(self, experiment_folder: str) -> None:
         super().setup_model(experiment_folder)
@@ -119,6 +115,7 @@ class SAC(Model):
         done = torch.FloatTensor(samples["done"].reshape(-1, 1)).to(device)
         b,n = reward.size()
         reward = reward.view(b,n,1)
+
         new_action, log_prob = self.actor(state)
         alpha_loss = ( -self.log_alpha.exp() * (log_prob + self.target_alpha).detach()).mean()
 
@@ -176,12 +173,3 @@ class SAC(Model):
             self.critic_v_target.parameters(), self.critic_v.parameters()
         ):
             t_param.data.copy_(self.tau * l_param.data + (1.0 - self.tau) * t_param.data)
-    
-    def plot_figures(self):
-        fig, ax = plt.subplots()
-        ax.plot(self.qf1_lossarr, label='qf1')
-        ax.plot(self.qf2_lossarr, label='qf2')
-        ax.plot(fn.moving_average(self.qf2_lossarr,500))
-        ax.set_yscale('log')
-        fig.savefig('qloss.png')
-        plt.close(fig)

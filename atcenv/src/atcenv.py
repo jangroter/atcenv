@@ -7,8 +7,6 @@ from atcenv.src.reward.reward import Reward
 from atcenv.src.scenarios.scenario import Scenario
 from atcenv.src.logger.logger import Logger
 
-from typing import Tuple, Optional, List
-
 class AtcEnv():
     def __init__(self,
                  environment: Environment,
@@ -49,10 +47,10 @@ class AtcEnv():
         self.store_episode()
 
     def store_episode(self):
-        self.logger.store_episode()
+        self.logger.store_episode(self.model)
     
     def store_transition(self, observation, action, new_observation, reward, done):
         self.logger.store_transition(self.environment, reward)
         self.model.store_transition(observation,action,new_observation,reward,done)
 
-        
+    

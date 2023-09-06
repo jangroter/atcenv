@@ -1,10 +1,10 @@
-experiment_name: "MVP_test"
+experiment_name: "norm"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
     render_frequency: 0
 model:
-  class_path: atcenv.src.models.model.MVP
+  class_path: atcenv.src.models.model.Random
   init_args:
     action_dim: 2
 scenario:
@@ -22,17 +22,18 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.StateBasedMVP
+  class_path: atcenv.src.observation.observation.BasicAbs
   init_args:
-    observation_size: 10
-    normalize_data: True
-    create_normalization_data: False
-    normalization_data_file: "local_normalization.p"
-    normalization_samples: 500000
+    observation_size: 18
+    num_ac_state: 3
+    normalize_data: False
+    create_normalization_data: True
+    normalization_data_file: "basic_abs_normalization.p"
+    normalization_samples: 50000
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
 logger:
   class_path: atcenv.src.logger.logger.BasicLogger
   init_args:
-    log_frequency: 1
+    log_frequency: 0
     verbose: True

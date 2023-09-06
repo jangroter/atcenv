@@ -7,6 +7,10 @@ from atcenv.src.environment_objects.environment import Environment
 from atcenv.src.models.model import Model
 import atcenv.src.functions as fn
 
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
+
 class Logger(ABC):
     """ Logger class
 
@@ -321,13 +325,15 @@ class RLLogger(Logger):
             np.savetxt(self.results_folder+'/conflicts.csv', self.conflicts)
             np.savetxt(self.results_folder+'/drift_angle.csv', self.drift_angle)
             np.savetxt(self.results_folder+'/q_loss.csv', model.qf1_lossarr)
+
+            self.plot_figures(model)
         
         if self.log_frequency != 0 and np.mean(self.reward[-100:]) > self.best_reward:
             self.best_reward = np.mean(self.reward[-100:])
             self.save_models(model)
         
         if self.verbose:
-            print(f"Episode {self.episode} completed, average of {np.mean(self.reward[-100:])} reward (ao100), average of {np.mean(self.conflicts[-100:])} conflicts")
+            print(f"Episode {self.episode} completed")
 
     def save_models(self, model):
         torch.save(model.actor.state_dict(), self.weights_folder+"/actor.pt")
@@ -336,6 +342,21 @@ class RLLogger(Logger):
         torch.save(model.critic_v.state_dict(), self.weights_folder+"/vf.pt")    
         torch.save(model.critic_v_target.state_dict(), self.weights_folder+"/vf_target.pt")    
     
+    def plot_figures(self, model):
+        fig, ax = plt.subplots()
+        ax.plot(model.qf1_lossarr, label='qf1')
+        ax.plot(model.qf2_lossarr, label='qf2')
+        ax.plot(fn.moving_average(model.qf2_lossarr,500))
+        ax.set_yscale('log')
+        fig.savefig(self.output_folder+'/qloss.png')
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        ax.plot(self.reward, label='reward')
+        ax.plot(fn.moving_average(self.reward,500))
+        fig.savefig(self.output_folder+'/reward.png')
+        plt.close(fig)
+
     def setup_experiment(self, experiment_name: str, config_file: str) -> str:
         """ Creates the required folder structure for saving the experiment data
 

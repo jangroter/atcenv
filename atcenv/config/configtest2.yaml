@@ -1,8 +1,0 @@
-Bla:
-  class_path: test.Dataset
-  init_args:
-    data_dir: " dasd"
-    batch_size: 256
-    augment: true
-a: 10
-b: 20

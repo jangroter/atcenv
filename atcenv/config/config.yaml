@@ -1,16 +1,16 @@
-experiment_name: "MVP_test"
+experiment_name: "Random_benchmark"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
-    render_frequency: 1
+    render_frequency: 0
 model:
-  class_path: atcenv.src.models.model.MVP
+  class_path: atcenv.src.models.model.Random
   init_args:
     action_dim: 2
 scenario:
   num_episodes: 20000
   num_flights: 10
-  airspace_area: 50000000000
+  airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
   num_test_episodes: 0
@@ -22,18 +22,18 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.Local
+  class_path: atcenv.src.observation.observation.BasicRel
   init_args:
-    observation_size: 10
-    num_ac_state: 1
-    normalize_data: True
+    observation_size: 18
+    num_ac_state: 3
+    normalize_data: False
     create_normalization_data: False
-    normalization_data_file: "local_normalization.p"
+    normalization_data_file: "basic_rel_normalization.p"
     normalization_samples: 500000
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
 logger:
   class_path: atcenv.src.logger.logger.BasicLogger
   init_args:
-    log_frequency: 0
+    log_frequency: 1
     verbose: True

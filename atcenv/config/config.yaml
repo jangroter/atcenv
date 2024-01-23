@@ -1,20 +1,21 @@
-experiment_name: "Random_benchmark"
+experiment_name: "Straight_benchmark"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
     render_frequency: 0
 model:
-  class_path: atcenv.src.models.model.Random
+  class_path: atcenv.src.models.model.Straight
   init_args:
     action_dim: 2
 scenario:
-  num_episodes: 20000
-  num_flights: 10
+  num_episodes: 1000
+  num_flights: 20
   airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
   num_test_episodes: 0
   test_frequency: 0
+  random_seed: 1
 airspace:
   class_path: atcenv.src.environment_objects.airspace.EnrouteAirspace
 aircraft:

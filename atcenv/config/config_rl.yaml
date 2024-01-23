@@ -1,4 +1,4 @@
-experiment_name: "FeedForward_ownref_straight"
+experiment_name: "FeedForward_absolute_20AC_Actlrx10"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -8,7 +8,7 @@ model:
   init_args:
     action_dim: 2
     alpha_lr: 3e-4
-    actor_lr: 3e-5
+    actor_lr: 3e-4
     critic_q_lr: 3e-3
     critic_v_lr: 3e-3
     gamma: 1.0
@@ -20,7 +20,7 @@ model:
       init_args:
         obs_dim: 18
         action_dim: 2
-        n_agents: 10
+        n_agents: 20
         size: 20000000
         batch_size: 2048
     actor:
@@ -47,8 +47,8 @@ model:
       init_args:
         in_dim: 18
 scenario:
-  num_episodes: 20000
-  num_flights: 10
+  num_episodes: 10000
+  num_flights: 20
   airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
@@ -61,13 +61,13 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.LocalNoTrack
+  class_path: atcenv.src.observation.observation.BasicAbs
   init_args:
     observation_size: 18
     num_ac_state: 3
     normalize_data: True
     create_normalization_data: False
-    normalization_data_file: "local_normalization.p"
+    normalization_data_file: "basic_abs_normalization.p"
     normalization_samples: 500000
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
@@ -77,5 +77,5 @@ reward:
 logger:
   class_path: atcenv.src.logger.logger.RLLogger
   init_args:
-    log_frequency: 500
+    log_frequency: 100
     verbose: True

@@ -1,4 +1,4 @@
-experiment_name: "Transformer_ownref_straight_lrx10"
+experiment_name: "Transformer_absolute_20AC_Actlrx10"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -7,10 +7,10 @@ model:
   class_path: atcenv.src.models.sac.SAC
   init_args:
     action_dim: 2
-    alpha_lr: 3e-3
+    alpha_lr: 3e-4
     actor_lr: 3e-4
-    critic_q_lr: 3e-2
-    critic_v_lr: 3e-2
+    critic_q_lr: 3e-3
+    critic_v_lr: 3e-3
     gamma: 1.0
     tau: 5e-3
     policy_update_freq: 8
@@ -18,42 +18,43 @@ model:
     buffer:
       class_path: atcenv.src.models.replay_buffer.ReplayBuffer
       init_args:
-        obs_dim: 8
+        obs_dim: 7
         action_dim: 2
-        n_agents: 10
+        n_agents: 20
         size: 20000000
         batch_size: 2048
     actor:
-      class_path: atcenv.src.models.actor.OwnRefTransformerActor
+      class_path: atcenv.src.models.actor.AbsTransformerActor
       init_args:
-        in_dim: 8
+        in_dim: 7
         out_dim: 2
     critic_q_1:
-      class_path: atcenv.src.models.critic_q.OwnRefTransformerQ
+      class_path: atcenv.src.models.critic_q.AbsTransformerQ
       init_args:
-        state_dim: 8
+        state_dim: 7
         action_dim: 2
     critic_q_2:
-      class_path: atcenv.src.models.critic_q.OwnRefTransformerQ
+      class_path: atcenv.src.models.critic_q.AbsTransformerQ
       init_args:
-        state_dim: 8
+        state_dim: 7
         action_dim: 2
     critic_v:
-      class_path: atcenv.src.models.critic_v.OwnRefTransformerV
+      class_path: atcenv.src.models.critic_v.AbsTransformerV
       init_args:
-        in_dim: 8
+        in_dim: 7
     critic_v_target:
-      class_path: atcenv.src.models.critic_v.OwnRefTransformerV
+      class_path: atcenv.src.models.critic_v.AbsTransformerV
       init_args:
-        in_dim: 8
+        in_dim: 7
 scenario:
-  num_episodes: 20000
-  num_flights: 10
+  num_episodes: 10000
+  num_flights: 20
   airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
   num_test_episodes: 0
   test_frequency: 0
+  random_seed: 1
 airspace:
   class_path: atcenv.src.environment_objects.airspace.EnrouteAirspace
 aircraft:
@@ -61,9 +62,9 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.GlobalTrack
+  class_path: atcenv.src.observation.observation.Global
   init_args:
-    observation_size: 8
+    observation_size: 7
     normalize_data: True
     create_normalization_data: False
     normalization_data_file: "global_normalization.p"
@@ -76,5 +77,5 @@ reward:
 logger:
   class_path: atcenv.src.logger.logger.RLLogger
   init_args:
-    log_frequency: 500
+    log_frequency: 100
     verbose: True

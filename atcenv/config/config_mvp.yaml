@@ -1,20 +1,22 @@
-experiment_name: "MVP_test"
+experiment_name: "MVP_straight_look1000"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
-    render_frequency: 0
+    render_frequency: 1
 model:
   class_path: atcenv.src.models.model.MVP
   init_args:
     action_dim: 2
+    t_lookahead: 1000
 scenario:
   num_episodes: 20000
   num_flights: 10
-  airspace_area: 50000000000
+  airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
   num_test_episodes: 0
   test_frequency: 0
+  random_seed: 3
 airspace:
   class_path: atcenv.src.environment_objects.airspace.EnrouteAirspace
 aircraft:
@@ -31,8 +33,11 @@ observation:
     normalization_samples: 500000
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
+  init_args:
+    intrusion_weight: -1
+    drift_weight: -0.1
 logger:
   class_path: atcenv.src.logger.logger.BasicLogger
   init_args:
-    log_frequency: 1
+    log_frequency: 0
     verbose: True

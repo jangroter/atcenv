@@ -296,7 +296,7 @@ class DefaultEnvironment(Environment):
             new_x = position.x + vx * self.dt
             new_y = position.y + vy * self.dt
 
-            flight.position._set_coords(new_x, new_y)
+            flight.position = Point(new_x,new_y)
         
         self.update_conflicts()
 

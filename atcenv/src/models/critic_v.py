@@ -542,3 +542,83 @@ class TransformerTestV(Critic_V):
         value = self.out(x)
         
         return value
+    
+class MultiHeadAdditiveCriticV(Critic_V):
+    def __init__(self,
+                 q_dim: int,
+                 kv_dim: int,
+                 num_heads: int = 3,
+                 num_blocks: int = 2,
+                 log_std_min: float= -20,
+                 log_std_max: float=2):
+        super().__init__()
+        
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        # Generate the transformer matrices
+        self.block1 = transformer.MultiHeadAdditiveAttentionBlock(q_dim,kv_dim,num_heads)
+
+        self.layers = nn.ModuleList()
+        in_dim = kv_dim * num_heads + q_dim
+        for layer in range(2):
+            self.layers.append(nn.Linear(in_dim, 256))
+            self.layers.append(nn.ReLU())
+            in_dim = 256
+
+        self.out = nn.Linear(in_dim, 1)
+        self.out = init_layer_uniform(self.out)
+    
+    def forward(self, state):
+
+        x = self.block1(state)
+
+        x = torch.cat((x,state),dim=2) # add absolute state information also before passing through the FFN
+
+        # Forward pass
+        for layer in self.layers:
+            x = layer(x)
+
+        value = self.out(x)
+        
+        return value
+    
+class MultiHeadAdditiveCriticVBasic(Critic_V):
+    def __init__(self,
+                 q_dim: int,
+                 kv_dim: int,
+                 num_heads: int = 3,
+                 num_blocks: int = 2,
+                 log_std_min: float= -20,
+                 log_std_max: float=2):
+        super().__init__()
+        
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        # Generate the transformer matrices
+        self.block1 = transformer.MultiHeadAdditiveAttentionBlockBasic(q_dim,kv_dim,num_heads)
+
+        self.layers = nn.ModuleList()
+        in_dim = kv_dim * num_heads + q_dim
+        for layer in range(2):
+            self.layers.append(nn.Linear(in_dim, 256))
+            self.layers.append(nn.ReLU())
+            in_dim = 256
+
+        self.out = nn.Linear(in_dim, 1)
+        self.out = init_layer_uniform(self.out)
+    
+    def forward(self, state):
+
+        x = self.block1(state)
+
+        x = torch.cat((x,state),dim=2) # add absolute state information also before passing through the FFN
+
+        # Forward pass
+        for layer in self.layers:
+            x = layer(x)
+
+        value = self.out(x)
+        
+        return value

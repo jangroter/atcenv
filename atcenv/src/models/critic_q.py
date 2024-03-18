@@ -564,6 +564,134 @@ class TransformerTestQ(Critic_Q):
         
         return value
 
+class MultiHeadAdditiveCriticQ(Critic_Q):
+    def __init__(self,
+                 q_dim: int,
+                 kv_dim: int,
+                 num_heads: int = 3,
+                 num_blocks: int = 2,
+                 log_std_min: float= -20,
+                 log_std_max: float=2):
+        super().__init__()
+        
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        # Generate the transformer matrices
+        self.block1 = transformer.MultiHeadAdditiveAttentionBlock(q_dim,kv_dim,num_heads)
+
+        self.layers = nn.ModuleList()
+        in_dim = kv_dim * num_heads + q_dim + 2
+        for layer in range(2):
+            self.layers.append(nn.Linear(in_dim, 256))
+            self.layers.append(nn.ReLU())
+            in_dim = 256
+
+        self.out = nn.Linear(in_dim, 1)
+        self.out = init_layer_uniform(self.out)
+
+    def forward(self, state, action):
+
+        x = self.block1(state)
+
+        x = torch.cat((x,state,action),dim=2) # add absolute state information also before passing through the FFN
+
+        # Forward pass
+        for layer in self.layers:
+            x = layer(x)
+
+        value = self.out(x)
+        
+        return value
+
+class MultiHeadAdditiveCriticQv2(Critic_Q):
+    def __init__(self,
+                 q_dim: int,
+                 kv_dim: int,
+                 num_heads: int = 3,
+                 num_blocks: int = 2,
+                 log_std_min: float= -20,
+                 log_std_max: float=2):
+        super().__init__()
+        
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        # Generate the transformer matrices
+        self.block1 = transformer.MultiHeadAdditiveAttentionBlockQ(q_dim,kv_dim,num_heads)
+
+        self.layers = nn.ModuleList()
+        in_dim = kv_dim * num_heads + q_dim
+        for layer in range(2):
+            self.layers.append(nn.Linear(in_dim, 256))
+            self.layers.append(nn.ReLU())
+            in_dim = 256
+
+        self.out = nn.Linear(in_dim, 1)
+        self.out = init_layer_uniform(self.out)
+
+    def forward(self, state, action):
+
+        x = self.block1(state,action)
+        q_state = torch.cat((state, action), dim=-1)
+
+        x = torch.cat((x,q_state),dim=-1) # add absolute state information also before passing through the FFN
+
+        # Forward pass
+        for layer in self.layers:
+            x = layer(x)
+
+        value = self.out(x)
+        
+        return value
+
+class MultiHeadAdditiveCriticQv2Basic(Critic_Q):
+    def __init__(self,
+                 q_dim: int,
+                 kv_dim: int,
+                 num_heads: int = 3,
+                 num_blocks: int = 2,
+                 log_std_min: float= -20,
+                 log_std_max: float=2):
+        super().__init__()
+        
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        # Generate the transformer matrices
+        self.block1 = transformer.MultiHeadAdditiveAttentionBlockQBasic(q_dim,kv_dim,num_heads)
+
+        self.layers = nn.ModuleList()
+        in_dim = kv_dim * num_heads + q_dim
+        for layer in range(2):
+            self.layers.append(nn.Linear(in_dim, 256))
+            self.layers.append(nn.ReLU())
+            in_dim = 256
+
+        self.out = nn.Linear(in_dim, 1)
+        self.out = init_layer_uniform(self.out)
+
+    def forward(self, state, action):
+
+        x = self.block1(state,action)
+        q_state = torch.cat((state, action), dim=-1)
+
+        x = torch.cat((x,q_state),dim=-1) # add absolute state information also before passing through the FFN
+
+        # Forward pass
+        for layer in self.layers:
+            x = layer(x)
+
+        value = self.out(x)
+        
+        return value
+
+
+
+
+
+
+
 
 
 

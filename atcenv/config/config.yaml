@@ -1,10 +1,10 @@
-experiment_name: "Straight_benchmark"
+experiment_name: "test1"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
-    render_frequency: 0
+    render_frequency: 1
 model:
-  class_path: atcenv.src.models.model.Straight
+  class_path: atcenv.src.models.model.Random
   init_args:
     action_dim: 2
 scenario:

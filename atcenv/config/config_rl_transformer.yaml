@@ -1,4 +1,4 @@
-experiment_name: "Transformer_absolute_20AC_Actlrx10"
+experiment_name: "Transformer_ownref_20AC_3head_additive_basic_intx10_test"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -18,34 +18,42 @@ model:
     buffer:
       class_path: atcenv.src.models.replay_buffer.ReplayBuffer
       init_args:
-        obs_dim: 7
+        obs_dim: 8
         action_dim: 2
         n_agents: 20
         size: 20000000
         batch_size: 2048
     actor:
-      class_path: atcenv.src.models.actor.AbsTransformerActor
+      class_path: atcenv.src.models.actor.MultiHeadAdditiveActorBasic
       init_args:
-        in_dim: 7
+        q_dim: 8
+        kv_dim: 5
+        num_heads: 3
         out_dim: 2
     critic_q_1:
-      class_path: atcenv.src.models.critic_q.AbsTransformerQ
+      class_path: atcenv.src.models.critic_q.MultiHeadAdditiveCriticQv2Basic
       init_args:
-        state_dim: 7
-        action_dim: 2
+        q_dim: 10
+        kv_dim: 5
+        num_heads: 3
     critic_q_2:
-      class_path: atcenv.src.models.critic_q.AbsTransformerQ
+      class_path: atcenv.src.models.critic_q.MultiHeadAdditiveCriticQv2Basic
       init_args:
-        state_dim: 7
-        action_dim: 2
+        q_dim: 10
+        kv_dim: 5
+        num_heads: 3
     critic_v:
-      class_path: atcenv.src.models.critic_v.AbsTransformerV
+      class_path: atcenv.src.models.critic_v.MultiHeadAdditiveCriticVBasic
       init_args:
-        in_dim: 7
+        q_dim: 8
+        kv_dim: 5
+        num_heads: 3
     critic_v_target:
-      class_path: atcenv.src.models.critic_v.AbsTransformerV
+      class_path: atcenv.src.models.critic_v.MultiHeadAdditiveCriticVBasic
       init_args:
-        in_dim: 7
+        q_dim: 8
+        kv_dim: 5
+        num_heads: 3
 scenario:
   num_episodes: 10000
   num_flights: 20
@@ -62,9 +70,9 @@ aircraft:
   max_speed: 250
   min_distance: 10000
 observation:
-  class_path: atcenv.src.observation.observation.Global
+  class_path: atcenv.src.observation.observation.GlobalTrack
   init_args:
-    observation_size: 7
+    observation_size: 8
     normalize_data: True
     create_normalization_data: False
     normalization_data_file: "global_normalization.p"
@@ -72,10 +80,10 @@ observation:
 reward:
   class_path: atcenv.src.reward.reward.DefaultReward
   init_args:
-    intrusion_weight: -1
+    intrusion_weight: -10
     drift_weight: -0.1
 logger:
   class_path: atcenv.src.logger.logger.RLLogger
   init_args:
-    log_frequency: 100
+    log_frequency: 250
     verbose: True

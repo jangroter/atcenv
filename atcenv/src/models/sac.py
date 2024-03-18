@@ -41,6 +41,7 @@ class SAC(Model):
         self.transform_action = True
         self.test = False
         
+        # device = "mps" if torch.backends.mps.is_available() else "cpu"
         self.device = torch.device("cpu")
 
         self.action_dim = action_dim
@@ -60,7 +61,7 @@ class SAC(Model):
 
         self.critic_v = critic_v.to(device=self.device)
         self.critic_v_target = critic_v_target.to(device=self.device)
-        self.critic_v_target.load_state_dict(self.critic_v_target.state_dict())
+        # self.critic_v_target.load_state_dict(self.critic_v_target.state_dict())
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.critic_q_1_optimizer = optim.Adam(self.critic_q_1.parameters(), lr=critic_q_lr)
@@ -105,6 +106,7 @@ class SAC(Model):
         super().setup_model(experiment_folder)
 
     def update_model(self):
+
         device = self.device
 
         samples = self.buffer.sample_batch()
@@ -113,6 +115,7 @@ class SAC(Model):
         action = torch.FloatTensor(samples["acts"]).to(device)
         reward = torch.FloatTensor(samples["rews"]).to(device)
         done = torch.FloatTensor(samples["done"].reshape(-1, 1)).to(device)
+
         b,n = reward.size()
         reward = reward.view(b,n,1)
 
@@ -126,6 +129,7 @@ class SAC(Model):
         alpha = self.log_alpha.exp()
 
         #mask = 1 - done
+
         q1_pred = self.critic_q_1(state, action)
         q2_pred = self.critic_q_2(state, action)
         vf_target = self.critic_v_target(next_state)
@@ -135,19 +139,21 @@ class SAC(Model):
 
         self.qf1_lossarr = np.append(self.qf1_lossarr,qf1_loss.detach().cpu().numpy())
         self.qf2_lossarr = np.append(self.qf2_lossarr,qf2_loss.detach().cpu().numpy())
-
-        v_pred = self.critic_v(state)
+   
+        v_pred = self.critic_v(state.detach())
         q_pred = torch.min(
             self.critic_q_1(state, new_action), self.critic_q_2(state, new_action)
         )
         v_target = q_pred - alpha * log_prob
-        v_loss = F.mse_loss(v_pred, v_target.detach())
 
+        v_loss = F.mse_loss(v_pred, v_target.detach())
+        
         if self.total_steps % self.policy_update_freq == 0:
             advantage = q_pred - v_pred.detach()
             actor_loss = (alpha * log_prob - advantage).mean()
 
             self.actor_optimizer.zero_grad()
+
             actor_loss.backward()
             self.actor_optimizer.step()
 
@@ -155,10 +161,13 @@ class SAC(Model):
         else:
             actor_loss = torch.zeros(1)
         
+        
         self.critic_q_1_optimizer.zero_grad()
+
         qf1_loss.backward()
         self.critic_q_1_optimizer.step()
         self.critic_q_2_optimizer.zero_grad()
+
         qf2_loss.backward()
         self.critic_q_2_optimizer.step()
 

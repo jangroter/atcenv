@@ -399,7 +399,31 @@ class RLLogger(Logger):
 
             return output_folder
 
+class RLLoggerV2(RLLogger):
+    def __init__(self,
+                 log_frequency: int,
+                 verbose: bool):
+        super().__init__(log_frequency, verbose)
 
+    def save_models(self, model):
+        torch.save(model.actor.state_dict(), self.weights_folder+"/actor.pt")
+        torch.save(model.critic_q_1.state_dict(), self.weights_folder+"/qf1.pt")
+        torch.save(model.critic_q_2.state_dict(), self.weights_folder+"/qf2.pt")
+        torch.save(model.critic_q_target_1.state_dict(), self.weights_folder+"/qf1_target.pt")    
+        torch.save(model.critic_q_target_2.state_dict(), self.weights_folder+"/qf2_target.pt")    
+    
+class RLLoggerV3(RLLogger):
+    def __init__(self,
+                 log_frequency: int,
+                 verbose: bool):
+        super().__init__(log_frequency, verbose)
+
+    def save_models(self, model):
+        torch.save(model.actor.state_dict(), self.weights_folder+"/actor.pt")
+        torch.save(model.critic_q.state_dict(), self.weights_folder+"/qf.pt")
+        torch.save(model.critic_q_target.state_dict(), self.weights_folder+"/qf_target.pt")
+
+    
 
 
 

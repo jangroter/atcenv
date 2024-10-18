@@ -395,6 +395,7 @@ class BasicAbs(Observation):
         dvx = vx[np.newaxis, :] - vx[:, np.newaxis]
         dvy = vy[np.newaxis, :] - vy[:, np.newaxis]
 
+
         x = np.array([x for f in flights])
         y = np.array([y for f in flights])
         vx = np.array([vx for f in flights])

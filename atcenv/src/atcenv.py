@@ -7,6 +7,8 @@ from atcenv.src.reward.reward import Reward
 from atcenv.src.scenarios.scenario import Scenario
 from atcenv.src.logger.logger import Logger
 
+import time
+
 class AtcEnv():
     def __init__(self,
                  environment: Environment,

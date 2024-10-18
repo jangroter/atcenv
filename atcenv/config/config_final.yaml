@@ -1,17 +1,16 @@
-experiment_name: "test3"
+experiment_name: "ca_high_int_penalty"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
     render_frequency: 0
 model:
-  class_path: atcenv.src.models.sac.SAC
+  class_path: atcenv.src.models.sac.SAC_V3
   init_args:
     action_dim: 2
     alpha_lr: 3e-4
     actor_lr: 3e-4
     critic_q_lr: 3e-3
-    critic_v_lr: 3e-3
-    gamma: 1.0
+    gamma: 0.99
     tau: 5e-3
     policy_update_freq: 8
     initial_random_steps: 0
@@ -30,39 +29,29 @@ model:
         kv_dim: 5
         num_heads: 3
         out_dim: 2
-    critic_q_1:
-      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScore
+        log_std_min: -3
+        log_std_max: 1
+    critic_q:
+      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScoreFinal
       init_args:
         q_dim: 10
         kv_dim: 5
         num_heads: 3
-    critic_q_2:
-      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScore
+    critic_q_target:
+      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScoreFinal
       init_args:
         q_dim: 10
-        kv_dim: 5
-        num_heads: 3
-    critic_v:
-      class_path: atcenv.src.models.critic_v.MultiHeadNeuralNetworkCriticVBasicScore
-      init_args:
-        q_dim: 8
-        kv_dim: 5
-        num_heads: 3
-    critic_v_target:
-      class_path: atcenv.src.models.critic_v.MultiHeadNeuralNetworkCriticVBasicScore
-      init_args:
-        q_dim: 8
         kv_dim: 5
         num_heads: 3
 scenario:
-  num_episodes: 10000
+  num_episodes: 5000
   num_flights: 20
   airspace_area: 10000000000
   traffic_density: 0
   test_scenario_dir: "hello"
   num_test_episodes: 0
   test_frequency: 0
-  random_seed: 1
+  random_seed: 3
 airspace:
   class_path: atcenv.src.environment_objects.airspace.EnrouteAirspace
 aircraft:
@@ -81,9 +70,9 @@ reward:
   class_path: atcenv.src.reward.reward.DefaultReward
   init_args:
     intrusion_weight: -1
-    drift_weight: -0.1
+    drift_weight: -0.01
 logger:
-  class_path: atcenv.src.logger.logger.RLLogger
+  class_path: atcenv.src.logger.logger.RLLoggerV3
   init_args:
-    log_frequency: 25
+    log_frequency: 250
     verbose: True

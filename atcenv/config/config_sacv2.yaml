@@ -1,4 +1,4 @@
-experiment_name: "test3"
+experiment_name: "SAC_v4_additive_basic"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -24,32 +24,32 @@ model:
         size: 20000000
         batch_size: 2048
     actor:
-      class_path: atcenv.src.models.actor.MultiHeadNeuralNetworkActorBasicScore
+      class_path: atcenv.src.models.actor.MultiHeadAdditiveActorBasicV2
       init_args:
         q_dim: 8
         kv_dim: 5
         num_heads: 3
         out_dim: 2
     critic_q_1:
-      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScore
+      class_path: atcenv.src.models.critic_q.MultiHeadAdditiveCriticQv2Basic
       init_args:
         q_dim: 10
         kv_dim: 5
         num_heads: 3
     critic_q_2:
-      class_path: atcenv.src.models.critic_q.MultiHeadNeuralNetworkCriticBasicScore
+      class_path: atcenv.src.models.critic_q.MultiHeadAdditiveCriticQv2Basic
       init_args:
         q_dim: 10
         kv_dim: 5
         num_heads: 3
     critic_v:
-      class_path: atcenv.src.models.critic_v.MultiHeadNeuralNetworkCriticVBasicScore
+      class_path: atcenv.src.models.critic_v.MultiHeadAdditiveCriticVBasic
       init_args:
         q_dim: 8
         kv_dim: 5
         num_heads: 3
     critic_v_target:
-      class_path: atcenv.src.models.critic_v.MultiHeadNeuralNetworkCriticVBasicScore
+      class_path: atcenv.src.models.critic_v.MultiHeadAdditiveCriticVBasic
       init_args:
         q_dim: 8
         kv_dim: 5

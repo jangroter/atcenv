@@ -1,4 +1,4 @@
-experiment_name: "test1"
+experiment_name: "test2"
 environment:
   class_path: atcenv.src.environment_objects.environment.DefaultEnvironment
   init_args:
@@ -27,7 +27,7 @@ observation:
   init_args:
     observation_size: 18
     num_ac_state: 3
-    normalize_data: False
+    normalize_data: True
     create_normalization_data: False
     normalization_data_file: "basic_rel_normalization.p"
     normalization_samples: 500000

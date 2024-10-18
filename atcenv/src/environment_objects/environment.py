@@ -285,7 +285,6 @@ class DefaultEnvironment(Environment):
         d_velocity = np.clip(action[:,1], -self.max_speed_change, self.max_speed_change)
         
         for flight, dh, dv in zip(self.flights, d_heading, d_velocity):
-
             flight.track = ((flight.track + dh) + u.circle) % u.circle  # Bound the new track between 0 and 2*pi
 
             flight.airspeed = np.clip(flight.airspeed+dv, flight.aircraft.min_speed, flight.aircraft.max_speed)
